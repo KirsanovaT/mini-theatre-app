@@ -9,30 +9,159 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); transition: background 0.3s, color 0.3s; }
-        .container { max-width: 400px; margin: 0 auto; }
-        h1, h2 { text-align: center; }
-        button { width: 100%; padding: 12px; margin: 10px 0; background: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border: none; border-radius: 8px; cursor: pointer; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        input, select, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid var(--tg-theme-hint-color); border-radius: 8px; background: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); box-sizing: border-box; }
-        .event, .task { background: var(--tg-theme-secondary-bg-color); padding: 10px; margin: 10px 0; border-radius: 8px; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .hidden { display: none; }
-        .error { color: var(--tg-theme-destructive-text-color); }
-        .participant { display: flex; align-items: center; margin: 5px 0; }
-        .participant input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .stats-table, .repertoire-table, .tasks-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .stats-table th, .stats-table td, .repertoire-table th, .repertoire-table td, .tasks-table th, .tasks-table td { padding: 8px; border: 1px solid var(--tg-theme-hint-color); text-align: left; font-size: 0.9em; }
-        .nav-buttons { display: flex; justify-content: space-between; margin-top: 20px; }
-        .nav-buttons button { width: 48%; }
-        .task-actions { display: flex; justify-content: space-around; margin-top: 10px; }
-        .task-actions button { width: 45%; padding: 6px; font-size: 0.8em; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
-        .status.planned { background: #fff3cd; color: #856404; }
-        .status.confirmed { background: #d4edda; color: #155724; }
-        .status.cancelled { background: #f8d7da; color: #721c24; }
-        #user-info { text-align: center; margin: 15px 0; font-weight: bold; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: var(--tg-theme-bg-color); 
+            color: var(--tg-theme-text-color); 
+            transition: background 0.3s, color 0.3s; 
+        }
+        .container { 
+            max-width: 400px; 
+            margin: 0 auto; 
+        }
+        h1, h2 { 
+            text-align: center; 
+            margin-bottom: 20px;
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            background: var(--tg-theme-button-color); 
+            color: var(--tg-theme-button-text-color); 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        button:hover {
+            background: var(--tg-theme-button-color-hover, var(--tg-theme-button-color));
+            transform: scale(1.02);
+        }
+        button:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border: 1px solid var(--tg-theme-hint-color); 
+            border-radius: 8px; 
+            background: var(--tg-theme-secondary-bg-color); 
+            color: var(--tg-theme-text-color); 
+            box-sizing: border-box; 
+            font-size: 16px;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--tg-theme-button-color);
+            outline: none;
+        }
+        .event, .task { 
+            background: var(--tg-theme-secondary-bg-color); 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            animation: fadeIn 0.3s ease-in-out; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .hidden { 
+            display: none; 
+        }
+        .error { 
+            color: var(--tg-theme-destructive-text-color); 
+            text-align: center;
+            margin-top: 5px;
+        }
+        .participant { 
+            display: flex; 
+            align-items: center; 
+            margin: 10px 0; 
+            padding: 5px;
+            border-radius: 8px;
+            background: var(--tg-theme-bg-color);
+        }
+        .participant input[type="checkbox"] { 
+            width: auto; 
+            margin-right: 10px; 
+        }
+        .stats-table, .repertoire-table, .tasks-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stats-table th, .stats-table td, .repertoire-table th, .repertoire-table td, .tasks-table th, .tasks-table td { 
+            padding: 12px; 
+            border: 1px solid var(--tg-theme-hint-color); 
+            text-align: left; 
+            font-size: 0.9em; 
+        }
+        th {
+            background: var(--tg-theme-secondary-bg-color);
+            font-weight: bold;
+        }
+        .nav-buttons { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 20px; 
+        }
+        .nav-buttons button { 
+            width: 48%; 
+        }
+        .task-actions { 
+            display: flex; 
+            justify-content: space-around; 
+            margin-top: 10px; 
+        }
+        .task-actions button { 
+            width: 45%; 
+            padding: 8px; 
+            font-size: 0.9em; 
+            border-radius: 6px;
+        }
+        .status { 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 0.8em; 
+            font-weight: bold; 
+        }
+        .status.planned { 
+            background: #fff3cd; 
+            color: #856404; 
+        }
+        .status.confirmed { 
+            background: #d4edda; 
+            color: #155724; 
+        }
+        .status.cancelled { 
+            background: #f8d7da; 
+            color: #721c24; 
+        }
+        #user-info { 
+            text-align: center; 
+            margin: 15px 0; 
+            font-weight: bold; 
+            color: var(--tg-theme-hint-color);
+        }
+        #main-menu button, #admin-panel button {
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -57,27 +186,27 @@
                 <option value="sound">Звуковой</option>
                 <option value="stage">Монтировочный</option>
             </select>
-            <button onclick="sendForConfirmation()">Отправить на подтверждение</button>
+            <button onclick="sendForConfirmation()"><i class="fas fa-check"></i> Отправить на подтверждение</button>
             <p class="error hidden" id="error-msg">Пожалуйста, заполните ФИО и роль</p>
             <p>Данные отправятся администратору. После одобрения вы получите доступ.</p>
         </div>
 
         <!-- Главное меню -->
         <div id="main-menu" class="hidden">
-            <button onclick="showSchedule()">Расписание</button>
-            <button onclick="startCreateEvent()">Создать событие</button>
-            <button onclick="startWorkshopTasks()">Задачи цехам</button>
-            <button onclick="showRepertoire()">Репертуар на месяц</button>
-            <button onclick="showStats()">Статистика</button>
+            <button onclick="showSchedule()"><i class="fas fa-calendar-alt"></i> Расписание</button>
+            <button onclick="startCreateEvent()"><i class="fas fa-plus"></i> Создать событие</button>
+            <button onclick="startWorkshopTasks()"><i class="fas fa-tasks"></i> Задачи цехам</button>
+            <button onclick="showRepertoire()"><i class="fas fa-book"></i> Репертуар на месяц</button>
+            <button onclick="showStats()"><i class="fas fa-chart-bar"></i> Статистика</button>
         </div>
 
         <!-- Админ-панель (для troupe_head и workshop_head) -->
         <div id="admin-panel" class="hidden">
             <h2>Админ-панель</h2>
-            <button onclick="showPendingConfirmations()">Неподтверждённые пользователи</button>
-            <button onclick="manageUsers()">Управление пользователями</button>
-            <button onclick="manageEvents()">Управление событиями</button>
-            <button onclick="manageTasks()">Управление задачами</button>
+            <button onclick="showPendingConfirmations()"><i class="fas fa-user-check"></i> Неподтверждённые пользователи</button>
+            <button onclick="manageUsers()"><i class="fas fa-users-cog"></i> Управление пользователями</button>
+            <button onclick="manageEvents()"><i class="fas fa-calendar-cog"></i> Управление событиями</button>
+            <button onclick="manageTasks()"><i class="fas fa-tasks-alt"></i> Управление задачами</button>
         </div>
 
         <!-- Неподтверждённые пользователи -->
@@ -85,7 +214,7 @@
             <h2>Неподтверждённые пользователи</h2>
             <div id="pending-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToAdminPanel()">Назад</button>
+                <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -94,7 +223,7 @@
             <h2>Управление пользователями</h2>
             <div id="users-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToAdminPanel()">Назад</button>
+                <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -103,7 +232,7 @@
             <h2>Управление событиями</h2>
             <div id="events-manage-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToAdminPanel()">Назад</button>
+                <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -112,7 +241,7 @@
             <h2>Управление задачами</h2>
             <div id="tasks-manage-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToAdminPanel()">Назад</button>
+                <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -127,7 +256,7 @@
             </select>
             <div id="events-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToMenu()">Назад</button>
+                <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -145,18 +274,18 @@
             <textarea id="event-description" placeholder="Описание (необязательно)"></textarea>
             <div id="participants-list"></div>
             <div class="nav-buttons">
-                <button onclick="saveEvent()">Сохранить</button>
-                <button onclick="backToMenu()">Отмена</button>
+                <button onclick="saveEvent()"><i class="fas fa-save"></i> Сохранить</button>
+                <button onclick="backToMenu()"><i class="fas fa-times"></i> Отмена</button>
             </div>
         </div>
 
         <!-- Задачи цехам -->
         <div id="workshop-tasks" class="hidden">
             <h2>Задачи цехам</h2>
-            <button onclick="startCreateTask()">Создать новую задачу</button>
+            <button onclick="startCreateTask()"><i class="fas fa-plus"></i> Создать новую задачу</button>
             <div id="tasks-list"></div>
             <div class="nav-buttons">
-                <button onclick="backToMenu()">Назад</button>
+                <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -174,8 +303,8 @@
             <input type="text" id="task-deadline" placeholder="Срок выполнения">
             <textarea id="task-description" placeholder="Подробное описание"></textarea>
             <div class="nav-buttons">
-                <button onclick="saveTask()">Сохранить</button>
-                <button onclick="backToWorkshopTasks()">Отмена</button>
+                <button onclick="saveTask()"><i class="fas fa-save"></i> Сохранить</button>
+                <button onclick="backToWorkshopTasks()"><i class="fas fa-times"></i> Отмена</button>
             </div>
         </div>
 
@@ -183,9 +312,9 @@
         <div id="repertoire" class="hidden">
             <h2>Репертуар на месяц</h2>
             <div id="repertoire-table-container"></div>
-            <button onclick="exportRepertoire()">Экспорт в Excel</button>
+            <button onclick="exportRepertoire()"><i class="fas fa-file-export"></i> Экспорт в Excel</button>
             <div class="nav-buttons">
-                <button onclick="backToMenu()">Назад</button>
+                <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
 
@@ -194,7 +323,7 @@
             <h2>Статистика</h2>
             <div id="stats-content"></div>
             <div class="nav-buttons">
-                <button onclick="backToMenu()">Назад</button>
+                <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
     </div>
