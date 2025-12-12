@@ -36,8 +36,10 @@
         .error { color: var(--tg-theme-destructive-color); }
         .participant { display: flex; align-items: center; margin: 5px 0; }
         .participant input[type="checkbox"] { width: auto; margin-right: 10px; }
-        .stats-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        .stats-table th, .stats-table td { padding: 8px; border: 1px solid var(--tg-theme-hint-color); text-align: left; }
+        .stats-table, .repertoire-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .stats-table th, .stats-table td, .repertoire-table th, .repertoire-table td { padding: 8px; border: 1px solid var(--tg-theme-hint-color); text-align: left; font-size: 0.9em; }
+        .nav-buttons { display: flex; justify-content: space-between; }
+        .nav-buttons button { width: 48%; }
     </style>
 </head>
 <body>
@@ -48,6 +50,7 @@
         <div id="main-menu">
             <button onclick="showSchedule()">Моё расписание</button>
             <button onclick="startCreateEvent()">Создать событие</button>
+            <button onclick="showRepertoire()">Планирование репертуара</button>
             <button onclick="showStats()">Статистика</button>
         </div>
         
@@ -60,6 +63,20 @@
                 <option value="week">Неделя</option>
             </select>
             <div id="events-list"></div>
+            <button onclick="backToMenu()">Назад</button>
+        </div>
+        
+        <!-- Репертуар на месяц -->
+        <div id="repertoire" class="hidden">
+            <h2>Репертуар на <span id="current-month">декабрь 2025</span></h2>
+            <div class="nav-buttons">
+                <button onclick="prevMonth()">Пред. месяц</button>
+                <button onclick="nextMonth()">След. месяц</button>
+            </div>
+            <table class="repertoire-table">
+                <thead><tr><th>Дата</th><th>Событие</th><th>Площадка</th><th>Тип</th></tr></thead>
+                <tbody id="repertoire-table-body"></tbody>
+            </table>
             <button onclick="backToMenu()">Назад</button>
         </div>
         
@@ -148,6 +165,19 @@
             ];
         }
 
+        // Кэш для репертуара (симуляция 1 часа)
+        let repertoireCache = { data: [], timestamp: 0 };
+        function getRepertoireCache(monthStr) {
+            const cached = JSON.parse(localStorage.getItem(`repertoire_${monthStr}`) || '{}');
+            if (Date.now() - cached.timestamp < 3600000) { // 1 час
+                return cached.data;
+            }
+            return [];
+        }
+        function setRepertoireCache(monthStr, data) {
+            localStorage.setItem(`repertoire_${monthStr}`, JSON.stringify({ data, timestamp: Date.now() }));
+        }
+
         // Инициализация календаря
         flatpickr("#datetime-start", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date() });
         flatpickr("#datetime-end", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(Date.now() + 2 * 60 * 60 * 1000) });
@@ -157,12 +187,13 @@
             document.getElementById('main-menu').classList.remove('hidden');
             hideAllSteps();
             document.getElementById('schedule').classList.add('hidden');
+            document.getElementById('repertoire').classList.add('hidden');
             document.getElementById('create-event').classList.add('hidden');
             document.getElementById('stats').classList.add('hidden');
             tg.MainButton.hide();
         }
 
-        // Расписание (улучшенное с периодами)
+        // Расписание
         function showSchedule(period = 'today') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('schedule').classList.remove('hidden');
@@ -176,6 +207,51 @@
             tg.MainButton.setText('Обновить').show().onClick(() => showSchedule(period));
             tg.HapticFeedback.impactOccurred('light');
         }
+
+        // Репертуар на месяц
+        let currentMonth = new Date(); // Текущий месяц
+        function showRepertoire() {
+            if (role !== 'director' && role !== 'admin') {
+                tg.showAlert('Нет прав для просмотра репертуара');
+                return;
+            }
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('repertoire').classList.remove('hidden');
+            renderRepertoire();
+            tg.MainButton.setText('Обновить').show().onClick(renderRepertoire);
+        }
+        function renderRepertoire() {
+            const monthStr = currentMonth.toISOString().slice(0, 7); // YYYY-MM
+            let events = getRepertoireCache(monthStr);
+            if (events.length === 0) {
+                events = getEvents().filter(e => {
+                    const date = new Date(e.datetime_start);
+                    return date.getFullYear() === currentMonth.getFullYear() && date.getMonth() === currentMonth.getMonth();
+                }).sort((a, b) => new Date(a.datetime_start) - new Date(b.datetime_start));
+                setRepertoireCache(monthStr, events);
+            }
+            
+            document.getElementById('current-month').textContent = currentMonth.toLocaleDateString('ru', { month: 'long', year: 'numeric' });
+            
+            const tableBody = document.getElementById('repertoire-table-body');
+            tableBody.innerHTML = events.map(e => {
+                const date = new Date(e.datetime_start).toLocaleDateString('ru', { day: 'numeric', weekday: 'short' });
+                return `<tr><td>${date}</td><td>${e.title}</td><td>${e.venue}</td><td>${e.type}</td></tr>`;
+            }).join('') || '<tr><td colspan="4">Нет событий</td></tr>';
+            
+            tg.HapticFeedback.impactOccurred('light');
+        }
+        function prevMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderRepertoire();
+            tg.HapticFeedback.selectionChanged();
+        }
+        function nextMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderRepertoire();
+            tg.HapticFeedback.selectionChanged();
+        }
+
         function filterByPeriod(dateStr, period) {
             const date = new Date(dateStr);
             const now = new Date();
@@ -189,7 +265,7 @@
             }
         }
 
-        // Создание события (FSM)
+        // Создание события (FSM) — без изменений
         let currentStep = 'type';
         function startCreateEvent() {
             if (role !== 'director' && role !== 'admin') {
@@ -233,7 +309,6 @@
             document.getElementById('selected-count').textContent = count;
         }
 
-        // Проверка конфликтов
         function checkConflicts() {
             const start = document.getElementById('datetime-start').value;
             const end = document.getElementById('datetime-end').value;
@@ -241,7 +316,6 @@
             const selectedParts = Array.from(document.querySelectorAll('#participants-list input:checked')).map(cb => parseInt(cb.id.split('-')[1]));
             const events = getEvents();
             
-            // Симуляция overlap для venue и participants
             const conflicts = events.filter(e => {
                 const eStart = new Date(e.datetime_start);
                 const eEnd = new Date(e.datetime_end);
@@ -262,7 +336,6 @@
             tg.HapticFeedback.notificationOccurred('success');
         }
 
-        // Создать событие
         function createEvent() {
             const type = document.getElementById('event-type').value;
             const title = document.getElementById('event-title').value || 'Новое событие';
@@ -289,16 +362,18 @@
             events.push(newEvent);
             saveEvents(events);
             
+            // Инвалидация кэша репертуара
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('repertoire_')) localStorage.removeItem(key);
+            });
+            
             tg.showAlert('Событие создано!');
             tg.HapticFeedback.notificationOccurred('success');
-            
-            // Отправка боту
             tg.sendData(JSON.stringify({ action: 'create_event', event: newEvent }));
-            
             backToMenu();
         }
 
-        // Статистика (без баллов)
+        // Статистика (без изменений)
         function showStats(period = 'month') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('stats').classList.remove('hidden');
@@ -325,19 +400,18 @@
             tg.MainButton.setText('Обновить').show().onClick(() => showStats(period));
         }
 
-        // Экспорт XLSX (без баллов)
         function exportStats() {
             const wb = XLSX.utils.book_new();
             const wsData = [['Событие', 'Часы', 'Номер']];
-            const events = getEvents(); // Упрощённо, без периода — можно доработать
+            const events = getEvents();
             let totalHours = 0;
             events.forEach((e, idx) => {
                 const durationHours = (new Date(e.datetime_end) - new Date(e.datetime_start)) / (1000 * 60 * 60);
                 totalHours += durationHours;
                 wsData.push([e.title, durationHours.toFixed(1), idx + 1]);
             });
-            wsData.push(['', '', '']); // Пустая строка
-            wsData.push(['Итого событий', events.length, '']); // Без баллов
+            wsData.push(['', '', '']);
+            wsData.push(['Итого событий', events.length, '']);
             wsData.push(['Общих часов', totalHours.toFixed(1), '']);
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'Статистика');
