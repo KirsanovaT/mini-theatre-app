@@ -64,7 +64,7 @@
 
         <!-- Главное меню -->
         <div id="main-menu" class="hidden">
-            <button onclick="showSchedule()">Моё расписание</button>
+            <button onclick="showSchedule()">Расписание</button>
             <button onclick="startCreateEvent()">Создать событие</button>
             <button onclick="startWorkshopTasks()">Задачи цехам</button>
             <button onclick="showRepertoire()">Репертуар на месяц</button>
@@ -76,6 +76,8 @@
             <h2>Админ-панель</h2>
             <button onclick="showPendingConfirmations()">Неподтверждённые пользователи</button>
             <button onclick="manageUsers()">Управление пользователями</button>
+            <button onclick="manageEvents()">Управление событиями</button>
+            <button onclick="manageTasks()">Управление задачами</button>
         </div>
 
         <!-- Неподтверждённые пользователи -->
@@ -96,9 +98,27 @@
             </div>
         </div>
 
+        <!-- Управление событиями -->
+        <div id="manage-events" class="hidden">
+            <h2>Управление событиями</h2>
+            <div id="events-manage-list"></div>
+            <div class="nav-buttons">
+                <button onclick="backToAdminPanel()">Назад</button>
+            </div>
+        </div>
+
+        <!-- Управление задачами -->
+        <div id="manage-tasks" class="hidden">
+            <h2>Управление задачами</h2>
+            <div id="tasks-manage-list"></div>
+            <div class="nav-buttons">
+                <button onclick="backToAdminPanel()">Назад</button>
+            </div>
+        </div>
+
         <!-- Расписание -->
         <div id="schedule" class="hidden">
-            <h2>Персональное расписание</h2>
+            <h2>Расписание</h2>
             <select id="period-select" onchange="loadSchedule(this.value)">
                 <option value="today">Сегодня</option>
                 <option value="tomorrow">Завтра</option>
@@ -217,7 +237,7 @@
         function hideConfirmShowMenu() {
             document.getElementById('confirm-section').classList.add('hidden');
             document.getElementById('main-menu').classList.remove('hidden');
-            document.getElementById('user-info').textContent = `Добро пожаловать, ${userFIO}! Роль: ${getRoleText(userRole)}${userWorkshop ? ' (' + userWorkshop + ')' : ''}`;
+            document.getElementById('user-info').textContent = `Добро пожаловать, ${userFIO}! Роль: ${getRoleText(userRole)}${userWorkshop ? ' (' + getDepartmentText(userWorkshop) + ')' : ''}`;
         }
 
         function updateMenuByRole() {
@@ -225,13 +245,17 @@
                 document.getElementById('admin-panel').classList.remove('hidden');
             }
             // Скрыть кнопки, если нет прав
-            if (!['actor', 'troupe_head', 'workshop_head'].includes(userRole)) {
+            if (!['actor', 'troupe_head'].includes(userRole)) {
                 document.querySelector('button[onclick="startCreateEvent()"]').classList.add('hidden');
             }
-            if (!['workshop_head', 'troupe_head'].includes(userRole)) {
-                document.querySelector('button[onclick="startWorkshopTasks()"]').classList.remove('hidden'); // Для workers - только просмотр
+            if (userRole === 'actor') {
+                document.querySelector('button[onclick="startWorkshopTasks()"]').classList.add('hidden');
+            }
+            if (userRole === 'workshop_worker') {
+                document.querySelector('button[onclick="showSchedule()"]').textContent = 'Моё расписание';
+                document.querySelector('button[onclick="startCreateEvent()"]').classList.add('hidden');
             } else {
-                // Для head - полный доступ
+                document.querySelector('button[onclick="showSchedule()"]').textContent = 'Расписание театра';
             }
         }
 
@@ -299,7 +323,7 @@
         }
 
         function hideAllSections() {
-            document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users')
+            document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users, #manage-events, #manage-tasks')
                 .forEach(el => el.classList.add('hidden'));
         }
 
@@ -318,9 +342,6 @@
             const now = new Date();
             let filtered = events.filter(e => {
                 const eventDate = new Date(e.datetime);
-                const participant = e.participants.some(p => p.id === user.id);
-                if (!participant && userRole !== 'troupe_head') return false; // Только свои, кроме топ
-
                 let matchesPeriod = false;
                 switch (period) {
                     case 'today':
@@ -345,6 +366,11 @@
                 return matchesPeriod;
             });
 
+            // Для базовых ролей - фильтр своих событий, для head - все
+            if (['actor', 'workshop_worker'].includes(userRole)) {
+                filtered = filtered.filter(e => e.participants.some(p => p.id === user.id));
+            }
+
             if (filtered.length === 0) {
                 list.innerHTML = '<p>На выбранный период событий нет.</p>';
                 return;
@@ -366,7 +392,7 @@
 
         // ===== СОЗДАНИЕ СОБЫТИЯ =====
         function startCreateEvent() {
-            if (!requireConfirmation() || !['actor', 'troupe_head', 'workshop_head'].includes(userRole)) {
+            if (!requireConfirmation() || !['actor', 'troupe_head'].includes(userRole)) {
                 tg.showAlert('У вас нет прав на создание событий');
                 return;
             }
@@ -435,7 +461,7 @@
 
         // ===== ЗАДАЧИ ЦЕХАМ =====
         function startWorkshopTasks() {
-            if (!requireConfirmation()) return;
+            if (!requireConfirmation() || !['workshop_head', 'workshop_worker', 'troupe_head'].includes(userRole)) return;
             hideAllSections();
             document.getElementById('workshop-tasks').classList.remove('hidden');
             loadTasks();
@@ -465,11 +491,17 @@
                     Срок: ${t.deadline}<br>
                     <span class="status ${t.status}">${getStatusText(t.status)}</span>
                 `;
-                if (userRole === 'workshop_head' || userRole === 'troupe_head') {
+                if (['workshop_head', 'troupe_head'].includes(userRole)) {
                     div.innerHTML += `
                         <div class="task-actions">
                             <button onclick="completeTask(${t.id})">Выполнено</button>
                             <button onclick="cancelTask(${t.id})">Отменить</button>
+                        </div>
+                    `;
+                } else if (userRole === 'workshop_worker' && t.status === 'planned') {
+                    div.innerHTML += `
+                        <div class="task-actions">
+                            <button onclick="completeTask(${t.id})">Выполнено</button>
                         </div>
                     `;
                 }
@@ -599,11 +631,15 @@
             let rehearsals = events.filter(e => e.type === 'rehearsal').length;
             let performances = events.filter(e => e.type === 'performance').length;
             let myEvents = events.filter(e => e.participants.some(p => p.id === user.id)).length;
+            let totalTasks = tasks.length;
 
-            if (userRole !== 'troupe_head') {
-                totalEvents = myEvents; // Только свои для не-топ
+            if (['actor', 'workshop_worker'].includes(userRole)) {
+                totalEvents = myEvents;
                 rehearsals = events.filter(e => e.type === 'rehearsal' && e.participants.some(p => p.id === user.id)).length;
                 performances = events.filter(e => e.type === 'performance' && e.participants.some(p => p.id === user.id)).length;
+                totalTasks = tasks.filter(t => t.department === userWorkshop).length;
+            } else if (userRole === 'workshop_head') {
+                totalTasks = tasks.filter(t => t.department === userWorkshop).length;
             }
 
             content.innerHTML = `
@@ -611,7 +647,7 @@
                 <p>Репетиций: ${rehearsals}</p>
                 <p>Спектаклей: ${performances}</p>
                 <p>Ваши события: ${myEvents}</p>
-                <p>Задач цехам: ${tasks.length}</p>
+                <p>Задач цехам: ${totalTasks}</p>
             `;
         }
 
@@ -627,9 +663,11 @@
         function loadPendingList() {
             const list = document.getElementById('pending-list');
             list.innerHTML = '';
-            // В реале: tg.sendData({action: 'get_pending'})
-            // Симуляция: из localStorage
-            pendingUsers.forEach(p => {
+            let filteredPending = pendingUsers;
+            if (userRole === 'workshop_head') {
+                filteredPending = pendingUsers.filter(p => p.requested_role.includes('workshop') && p.requested_workshop === userWorkshop);
+            }
+            filteredPending.forEach(p => {
                 const div = document.createElement('div');
                 div.className = 'participant';
                 div.innerHTML = `
@@ -658,7 +696,7 @@
                     else wsSelect.classList.add('hidden');
                 });
             });
-            if (pendingUsers.length === 0) {
+            if (filteredPending.length === 0) {
                 list.innerHTML = '<p>Нет неподтверждённых заявок</p>';
             }
         }
@@ -801,6 +839,93 @@
             }
             tg.showAlert('Пользователь удалён');
             loadUsersList();
+        }
+
+        function manageEvents() {
+            if (userRole !== 'troupe_head') return;
+            hideAllSections();
+            document.getElementById('manage-events').classList.remove('hidden');
+            loadManageEvents();
+            tg.BackButton.show().onClick(backToAdminPanel);
+        }
+
+        function loadManageEvents() {
+            const list = document.getElementById('events-manage-list');
+            list.innerHTML = '';
+            events.forEach(e => {
+                const div = document.createElement('div');
+                div.className = 'event';
+                div.innerHTML = `
+                    <strong>${e.title}</strong><br>
+                    ${formatDate(e.datetime)}<br>
+                    <div class="task-actions">
+                        <button onclick="editEvent(${e.id})">Редактировать</button>
+                        <button onclick="deleteEvent(${e.id})">Удалить</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            if (events.length === 0) {
+                list.innerHTML = '<p>Событий нет</p>';
+            }
+        }
+
+        function editEvent(id) {
+            // Здесь можно добавить форму редактирования, для симуляции просто алерт
+            tg.showAlert(`Редактирование события ${id} (реализация формы опущена в симуляции)`);
+        }
+
+        function deleteEvent(id) {
+            const index = events.findIndex(e => e.id === id);
+            if (index !== -1) {
+                events.splice(index, 1);
+                localStorage.setItem('events', JSON.stringify(events));
+            }
+            tg.showAlert('Событие удалено');
+            loadManageEvents();
+        }
+
+        function manageTasks() {
+            if (userRole !== 'troupe_head') return;
+            hideAllSections();
+            document.getElementById('manage-tasks').classList.remove('hidden');
+            loadManageTasks();
+            tg.BackButton.show().onClick(backToAdminPanel);
+        }
+
+        function loadManageTasks() {
+            const list = document.getElementById('tasks-manage-list');
+            list.innerHTML = '';
+            tasks.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'task';
+                div.innerHTML = `
+                    <strong>${t.title}</strong> (${getDepartmentText(t.department)})<br>
+                    Срок: ${t.deadline}<br>
+                    <div class="task-actions">
+                        <button onclick="editTask(${t.id})">Редактировать</button>
+                        <button onclick="deleteTask(${t.id})">Удалить</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            if (tasks.length === 0) {
+                list.innerHTML = '<p>Задач нет</p>';
+            }
+        }
+
+        function editTask(id) {
+            tg.showAlert(`Редактирование задачи ${id} (реализация формы опущена в симуляции)`);
+        }
+
+        function deleteTask(id) {
+            const index = tasks.findIndex(t => t.id === id);
+            if (index !== -1) {
+                tasks.splice(index, 1);
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+            tg.showAlert('Задача удалена');
+            loadManageTasks();
         }
 
         // Вспомогательные функции
