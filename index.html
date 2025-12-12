@@ -5,27 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Театральный планировщик</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Flatpickr для календаря -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <!-- SheetJS для XLSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-            transition: background 0.3s, color 0.3s;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); transition: background 0.3s, color 0.3s; }
         .container { max-width: 400px; margin: 0 auto; }
-        button { 
-            width: 100%; padding: 12px; margin: 10px 0; 
-            background: var(--tg-theme-button-color); 
-            color: var(--tg-theme-button-text-color); 
-            border: none; border-radius: 8px; cursor: pointer; 
-        }
+        button { width: 100%; padding: 12px; margin: 10px 0; background: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border: none; border-radius: 8px; cursor: pointer; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         input, select, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid var(--tg-theme-hint-color); border-radius: 8px; background: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); box-sizing: border-box; }
         .event, .task { background: var(--tg-theme-secondary-bg-color); padding: 10px; margin: 10px 0; border-radius: 8px; animation: fadeIn 0.3s; }
@@ -57,13 +43,13 @@
             <button onclick="showSchedule()">Моё расписание</button>
             <button onclick="startCreateEvent()">Создать событие</button>
             <button onclick="startWorkshopTasks()">Задачи цехам</button>
-            <button onclick="showRepertoire()">Планирование репертуара</button>
+            <button onclick="showRepertoire()">Репертуар на месяц</button>
             <button onclick="showStats()">Статистика</button>
         </div>
         
         <!-- Расписание -->
         <div id="schedule" class="hidden">
-            <h2>Расписание</h2>
+            <h2>Персональное расписание</h2>
             <select id="period-select" onchange="showSchedule(this.value)">
                 <option value="today">Сегодня</option>
                 <option value="tomorrow">Завтра</option>
@@ -108,48 +94,39 @@
             <button onclick="backToMenu()">Назад</button>
         </div>
         
-        <!-- Создание события (шаги) -->
+        <!-- Создание события -->
         <div id="create-event" class="hidden">
             <h2>Создать событие</h2>
-            
-            <!-- Шаг 1: Тип -->
             <div id="step-type" class="step active">
                 <select id="event-type">
                     <option value="performance">Спектакль</option>
                     <option value="rehearsal">Репетиция</option>
+                    <option value="tour">Гастроли</option>
                 </select>
                 <button onclick="nextStep('venue')">Далее</button>
             </div>
-            
-            <!-- Шаг 2: Дата/Время/Площадка -->
             <div id="step-venue" class="step">
                 <select id="venue-select">
                     <option value="1">Основная сцена</option>
                     <option value="2">Малая сцена</option>
                 </select>
-                <input type="text" id="datetime-start" placeholder="Выберите дату/время начала">
-                <input type="text" id="datetime-end" placeholder="Выберите дату/время конца">
-                <div id="participants-list">
-                    <div class="participant"><input type="checkbox" id="part-1" checked> <label for="part-1">Вы (Артист)</label></div>
-                    <div class="participant"><input type="checkbox" id="part-2"> <label for="part-2">Артист 2</label></div>
-                    <div class="participant"><input type="checkbox" id="part-3"> <label for="part-3">Режиссёр</label></div>
-                </div>
+                <input type="text" id="datetime-start" placeholder="Начало">
+                <input type="text" id="datetime-end" placeholder="Конец">
+                <div id="participants-list"></div>
                 <button onclick="nextStep('confirm')">Проверить конфликты</button>
                 <div id="conflicts" class="error hidden"></div>
             </div>
-            
-            <!-- Шаг 3: Подтверждение -->
             <div id="step-confirm" class="step">
-                <p>Название: <input type="text" id="event-title" placeholder="Введите название"></p>
-                <p>Участники выбраны: <span id="selected-count">0</span></p>
+                <input type="text" id="event-title" placeholder="Название">
+                <p>Участники: <span id="selected-count">0</span></p>
                 <button onclick="createEvent()">Создать</button>
                 <button onclick="prevStep()">Назад</button>
             </div>
         </div>
         
-        <!-- Создание задачи (FSM) -->
+        <!-- Создание задачи -->
         <div id="create-task" class="hidden">
-            <h2>Создать задачу цеху</h2>
+            <h2>Создать задачу</h2>
             <div id="task-step-1" class="step active">
                 <select id="task-workshop-type">
                     <option value="costume">Костюмы</option>
@@ -157,29 +134,26 @@
                     <option value="light">Свет</option>
                     <option value="sound">Звук</option>
                 </select>
-                <textarea id="task-description" placeholder="Описание задачи"></textarea>
-                <input type="text" id="task-deadline" placeholder="Срок (дата/время)">
-                <select id="task-linked-event">
-                    <option value="">Независимая задача</option>
-                </select>
+                <textarea id="task-description" placeholder="Описание"></textarea>
+                <input type="text" id="task-deadline" placeholder="Срок">
+                <select id="task-linked-event"><option value="">Независимо</option></select>
                 <button onclick="createTask()">Создать</button>
                 <button onclick="backToTasks()">Назад</button>
             </div>
         </div>
         
-        <!-- Статистика -->
+        <!-- Статистика (без баллов) -->
         <div id="stats" class="hidden">
-            <h2>Ваша статистика</h2>
+            <h2>Статистика занятости</h2>
             <select id="stats-period" onchange="showStats(this.value)">
                 <option value="month">Месяц</option>
                 <option value="season">Сезон</option>
             </select>
             <table class="stats-table">
-                <thead><tr><th>Событие</th><th>Часы</th><th>Номер</th></tr></thead>
+                <thead><tr><th>Артист</th><th>Спектакли</th><th>Репетиции</th><th>Гастроли</th><th>Часы/неделя</th><th>Номер в сезоне</th></tr></thead>
                 <tbody id="stats-table-body"></tbody>
             </table>
-            <p><strong>Итого событий: <span id="total-events">0</span> | Общих часов: <span id="total-hours">0</span></strong></p>
-            <button onclick="exportStats()">Экспорт в XLSX</button>
+            <button onclick="exportStats()">Экспорт XLSX</button>
             <button onclick="backToMenu()">Назад</button>
         </div>
     </div>
@@ -188,55 +162,40 @@
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
+        tg.onEvent('themeChanged', () => { document.body.style.background = tg.themeParams.bg_color; });
 
-        // Адаптация темы
-        tg.onEvent('themeChanged', () => {
-            document.body.style.background = tg.themeParams.bg_color;
-        });
-
-        // User и роль
         const user = tg.initDataUnsafe.user;
         const role = (user.id % 4 === 0) ? 'artist' : (user.id % 4 === 1 ? 'director' : (user.id % 4 === 2 ? 'admin' : 'workshop_head'));
 
         // Данные
-        function getEvents() {
-            return JSON.parse(localStorage.getItem('events') || '[]');
-        }
-        function saveEvents(events) {
-            localStorage.setItem('events', JSON.stringify(events));
-        }
-        function getTasks() {
-            return JSON.parse(localStorage.getItem('tasks') || '[]');
-        }
-        function saveTasks(tasks) {
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-        }
-        function getParticipants() {
+        function getEvents() { return JSON.parse(localStorage.getItem('events') || '[]'); }
+        function saveEvents(events) { localStorage.setItem('events', JSON.stringify(events)); }
+        function getTasks() { return JSON.parse(localStorage.getItem('tasks') || '[]'); }
+        function saveTasks(tasks) { localStorage.setItem('tasks', JSON.stringify(tasks)); }
+        function getArtists() {
             return [
-                { id: 1, name: 'Вы (Артист)' },
-                { id: 2, name: 'Артист 2' },
-                { id: 3, name: 'Режиссёр' }
+                { id: 1, name: 'Артист 1', role_type: 'main' },
+                { id: 2, name: 'Артист 2', role_type: 'supporting' },
+                { id: 3, name: 'Артист 3', role_type: 'extra' },
+                { id: 4, name: user.first_name || 'Вы', role_type: 'main' }
             ];
         }
 
         // Кэш репертуара
         function getRepertoireCache(monthStr) {
             const cached = JSON.parse(localStorage.getItem(`repertoire_${monthStr}`) || '{}');
-            if (Date.now() - cached.timestamp < 3600000) {
-                return cached.data;
-            }
+            if (Date.now() - cached.timestamp < 3600000) return cached.data;
             return [];
         }
         function setRepertoireCache(monthStr, data) {
             localStorage.setItem(`repertoire_${monthStr}`, JSON.stringify({ data, timestamp: Date.now() }));
         }
 
-        // Инициализация календарей
-        flatpickr("#datetime-start", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date() });
-        flatpickr("#datetime-end", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(Date.now() + 2 * 60 * 60 * 1000) });
-        flatpickr("#task-deadline", { enableTime: true, dateFormat: "Y-m-d H:i" });
+        // Инициализация
+        flatpickr("#datetime-start, #task-deadline", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date() });
+        flatpickr("#datetime-end", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(Date.now() + 7200000) });
 
-        // Главное меню
+        // Утилиты
         function backToMenu() {
             document.getElementById('main-menu').classList.remove('hidden');
             hideAllSteps();
@@ -249,13 +208,15 @@
             document.getElementById('stats').classList.add('hidden');
             tg.MainButton.hide();
         }
+        function hideAllSteps() { document.querySelectorAll('#create-event .step').forEach(s => s.classList.remove('active')); }
+        function hideTaskSteps() { document.querySelectorAll('#create-task .step').forEach(s => s.classList.remove('active')); }
 
-        // Расписание
+        // Расписание (персональное)
         function showSchedule(period = 'today') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('schedule').classList.remove('hidden');
             
-            const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period));
+            const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period) && e.participants.includes(user.id));
             const list = document.getElementById('events-list');
             list.innerHTML = events.map(e => 
                 `<div class="event">${e.title} (${e.type})<br>${new Date(e.datetime_start).toLocaleString()} - ${new Date(e.datetime_end).toLocaleString()} на ${e.venue}</div>`
@@ -282,7 +243,7 @@
         let currentMonth = new Date();
         function showRepertoire() {
             if (role !== 'director' && role !== 'admin') {
-                tg.showAlert('Нет прав для просмотра репертуара');
+                tg.showAlert('Нет прав');
                 return;
             }
             document.getElementById('main-menu').classList.add('hidden');
@@ -311,26 +272,21 @@
             
             tg.HapticFeedback.impactOccurred('light');
         }
-        function prevMonth() {
-            currentMonth.setMonth(currentMonth.getMonth() - 1);
-            renderRepertoire();
-            tg.HapticFeedback.selectionChanged();
-        }
-        function nextMonth() {
-            currentMonth.setMonth(currentMonth.getMonth() + 1);
-            renderRepertoire();
-            tg.HapticFeedback.selectionChanged();
-        }
+        function prevMonth() { currentMonth.setMonth(currentMonth.getMonth() - 1); renderRepertoire(); tg.HapticFeedback.selectionChanged(); }
+        function nextMonth() { currentMonth.setMonth(currentMonth.getMonth() + 1); renderRepertoire(); tg.HapticFeedback.selectionChanged(); }
 
         // Создание события
         let currentStep = 'type';
         function startCreateEvent() {
             if (role !== 'director' && role !== 'admin') {
-                tg.showAlert('Нет прав для создания событий');
+                tg.showAlert('Нет прав');
                 return;
             }
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('create-event').classList.remove('hidden');
+            document.getElementById('participants-list').innerHTML = getArtists().map(a => 
+                `<div class="participant"><input type="checkbox" id="part-${a.id}" ${a.id === 4 ? 'checked' : ''}> <label for="part-${a.id}">${a.name}</label></div>`
+            ).join('');
             showStep('type');
             tg.MainButton.setText('Отмена').show().onClick(backToMenu);
         }
@@ -357,10 +313,6 @@
             if (idx > 0) showStep(steps[idx - 1]);
         }
 
-        function hideAllSteps() {
-            document.querySelectorAll('#create-event .step').forEach(s => s.classList.remove('active'));
-        }
-
         function updateSelectedCount() {
             const count = document.querySelectorAll('#participants-list input:checked').length;
             document.getElementById('selected-count').textContent = count;
@@ -377,13 +329,13 @@
                 const eStart = new Date(e.datetime_start);
                 const eEnd = new Date(e.datetime_end);
                 const overlap = !(new Date(end) <= eStart || new Date(start) >= eEnd);
-                return e.venue_id === parseInt(venueId) && overlap && e.status !== 'cancelled' &&
-                       selectedParts.some(p => e.participants.includes(p));
+                const busy = selectedParts.some(p => e.participants.includes(p));
+                return (e.venue_id === parseInt(venueId) || busy) && overlap && e.status !== 'cancelled';
             });
             
             const conflictsDiv = document.getElementById('conflicts');
             if (conflicts.length > 0) {
-                conflictsDiv.innerHTML = `Конфликты: ${conflicts.map(e => e.title).join(', ')}`;
+                conflictsDiv.innerHTML = `Конфликты (${conflicts.length}): ${conflicts.map(e => `${e.title} (${e.type})`).join(', ')}`;
                 conflictsDiv.classList.remove('hidden');
                 tg.HapticFeedback.notificationOccurred('error');
                 return;
@@ -407,22 +359,13 @@
                 return;
             }
             
-            const newEvent = {
-                id: Date.now(),
-                type, title, venue_id: parseInt(venueId), venue,
-                datetime_start: start, datetime_end: end,
-                status: 'planned',
-                participants
-            };
+            const newEvent = { id: Date.now(), type, title, venue_id: parseInt(venueId), venue, datetime_start: start, datetime_end: end, status: 'planned', participants };
             
             let events = getEvents();
             events.push(newEvent);
             saveEvents(events);
             
-            // Инвалидация кэша
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('repertoire_')) localStorage.removeItem(key);
-            });
+            Object.keys(localStorage).forEach(key => { if (key.startsWith('repertoire_')) localStorage.removeItem(key); });
             
             tg.showAlert('Событие создано!');
             tg.HapticFeedback.notificationOccurred('success');
@@ -441,23 +384,15 @@
         function renderTasks() {
             const filterWorkshop = document.getElementById('filter-workshop').value;
             const filterStatus = document.getElementById('filter-status').value;
-            let tasks = getTasks().filter(t => {
-                return (!filterWorkshop || t.workshop_type === filterWorkshop) &&
-                       (!filterStatus || t.status === filterStatus);
-            }).sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
+            let tasks = getTasks().filter(t => (!filterWorkshop || t.workshop_type === filterWorkshop) && (!filterStatus || t.status === filterStatus)).sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
             
             const list = document.getElementById('tasks-list');
             list.innerHTML = tasks.map(t => {
                 const statusClass = `status ${t.status}`;
-                const linkedEvent = t.linked_event_id ? ` (привязано к событию ${t.linked_event_id})` : '';
+                const linkedEvent = t.linked_event_id ? ` (привязано к ${t.linked_event_id})` : '';
                 let actions = '';
-                if (role === 'workshop_head' && t.workshop_type === 'costume') { // Симуляция
-                    actions = `
-                        <div class="task-actions">
-                            <button onclick="updateTaskStatus(${t.id}, 'confirmed')">Выполнено</button>
-                            <button onclick="updateTaskStatus(${t.id}, 'cancelled')">Отменить</button>
-                        </div>
-                    `;
+                if (role === 'workshop_head' && t.workshop_type === 'costume') {
+                    actions = `<div class="task-actions"><button onclick="updateTaskStatus(${t.id}, 'confirmed')">Выполнено</button><button onclick="updateTaskStatus(${t.id}, 'cancelled')">Отменить</button></div>`;
                 }
                 return `<div class="task"><strong>${t.workshop_type.toUpperCase()}${linkedEvent}</strong><br>${t.description}<br>Срок: ${new Date(t.deadline).toLocaleString()}<br><span class="${statusClass}">Статус: ${t.status}</span>${actions}</div>`;
             }).join('') || '<p>Нет задач</p>';
@@ -473,10 +408,9 @@
                 tg.HapticFeedback.notificationOccurred('success');
             }
         }
-
         function startCreateTask() {
             if (role !== 'director' && role !== 'admin') {
-                tg.showAlert('Нет прав для создания задач');
+                tg.showAlert('Нет прав');
                 return;
             }
             document.getElementById('workshop-tasks').classList.add('hidden');
@@ -502,28 +436,17 @@
                 return;
             }
             
-            const newTask = {
-                id: Date.now(),
-                workshop_type: workshopType,
-                description,
-                deadline,
-                linked_event_id: linkedEventId || null,
-                status: 'planned'
-            };
+            const newTask = { id: Date.now(), workshop_type: workshopType, description, deadline, linked_event_id: linkedEventId || null, status: 'planned' };
             
             let tasks = getTasks();
             tasks.push(newTask);
             saveTasks(tasks);
             
-            // Уведомление
-            tg.showAlert(`Задача создана для ${workshopType}! Глава цеха уведомлён.`);
+            tg.showAlert(`Задача для ${workshopType} создана!`);
             tg.HapticFeedback.notificationOccurred('success');
             tg.sendData(JSON.stringify({ action: 'create_task', task: newTask }));
             
-            // Инвалидация кэша
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('repertoire_')) localStorage.removeItem(key);
-            });
+            Object.keys(localStorage).forEach(key => { if (key.startsWith('repertoire_')) localStorage.removeItem(key); });
             
             backToTasks();
         }
@@ -531,59 +454,72 @@
             document.getElementById('create-task').classList.add('hidden');
             startWorkshopTasks();
         }
-        function hideTaskSteps() {
-            document.querySelectorAll('#create-task .step').forEach(s => s.classList.remove('active'));
-        }
 
-        // Статистика
+        // Статистика (только занятость и номера)
         function showStats(period = 'month') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('stats').classList.remove('hidden');
             
             const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period));
-            let totalHours = 0;
+            const artists = getArtists();
+            
+            // Симуляция номеров
+            const seasonEvents = events.filter(e => e.type === 'performance').sort((a, b) => new Date(a.datetime_start) - new Date(b.datetime_start));
+            const seasonNumber = simulateRowNumber(seasonEvents, 'season');
+            
             const tableBody = document.getElementById('stats-table-body');
             tableBody.innerHTML = '';
-            
-            events.forEach((e, idx) => {
-                const durationHours = (new Date(e.datetime_end) - new Date(e.datetime_start)) / (1000 * 60 * 60);
-                totalHours += durationHours;
+            artists.forEach(artist => {
+                const artistEvents = events.filter(e => e.participants.includes(artist.id));
+                const performances = artistEvents.filter(e => e.type === 'performance').length;
+                const rehearsals = artistEvents.filter(e => e.type === 'rehearsal').length;
+                const tours = artistEvents.filter(e => e.type === 'tour').length;
+                const totalHours = artistEvents.reduce((sum, e) => sum + (new Date(e.datetime_end) - new Date(e.datetime_start)) / 3600000, 0);
+                const weeklyHours = totalHours / (events.length / 7 || 1);
+                const seasonNum = seasonNumber[artistEvents.find(e => e.type === 'performance')?.id] || 0;
+                
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${e.title} (${e.type})</td>
-                    <td>${durationHours.toFixed(1)}</td>
-                    <td>${idx + 1}</td>
-                `;
+                row.innerHTML = `<td>${artist.name}</td><td>${performances}</td><td>${rehearsals}</td><td>${tours}</td><td>${weeklyHours.toFixed(1)}</td><td>${seasonNum}</td>`;
                 tableBody.appendChild(row);
             });
             
-            document.getElementById('total-events').textContent = events.length;
-            document.getElementById('total-hours').textContent = totalHours.toFixed(1);
             tg.MainButton.setText('Обновить').show().onClick(() => showStats(period));
         }
 
-        function exportStats() {
-            const wb = XLSX.utils.book_new();
-            const wsData = [['Событие', 'Часы', 'Номер']];
-            const events = getEvents();
-            let totalHours = 0;
+        function simulateRowNumber(events, partitionBy) {
+            const numbered = {};
             events.forEach((e, idx) => {
-                const durationHours = (new Date(e.datetime_end) - new Date(e.datetime_start)) / (1000 * 60 * 60);
-                totalHours += durationHours;
-                wsData.push([e.title, durationHours.toFixed(1), idx + 1]);
+                if (!numbered[e.id]) numbered[e.id] = idx + 1;
             });
-            wsData.push(['', '', '']);
-            wsData.push(['Итого событий', events.length, '']);
-            wsData.push(['Общих часов', totalHours.toFixed(1), '']);
+            return numbered;
+        }
+
+        function exportStats() {
+            const period = document.getElementById('stats-period').value;
+            const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period));
+            const artists = getArtists();
+            const wb = XLSX.utils.book_new();
+            const wsData = [['Артист', 'Спектакли', 'Репетиции', 'Гастроли', 'Часы/неделя', 'Номер в сезоне']];
+            
+            artists.forEach(artist => {
+                const artistEvents = events.filter(e => e.participants.includes(artist.id));
+                const performances = artistEvents.filter(e => e.type === 'performance').length;
+                const rehearsals = artistEvents.filter(e => e.type === 'rehearsal').length;
+                const tours = artistEvents.filter(e => e.type === 'tour').length;
+                const totalHours = artistEvents.reduce((sum, e) => sum + (new Date(e.datetime_end) - new Date(e.datetime_start)) / 3600000, 0);
+                const weeklyHours = totalHours / 4;
+                const seasonNum = simulateRowNumber(events.filter(e => e.type === 'performance'), 'season')[artistEvents[0]?.id] || 0;
+                wsData.push([artist.name, performances, rehearsals, tours, weeklyHours.toFixed(1), seasonNum]);
+            });
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Статистика');
+            XLSX.utils.book_append_sheet(wb, ws, 'Статистика по артистам');
             XLSX.writeFile(wb, 'theatre_stats.xlsx');
             tg.HapticFeedback.notificationOccurred('success');
         }
 
         // Слушатели
-        document.querySelectorAll('#participants-list input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', updateSelectedCount);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('#participants-list input[type="checkbox"]').forEach(cb => cb.addEventListener('change', updateSelectedCount));
         });
 
         tg.BackButton.show().onClick(backToMenu);
