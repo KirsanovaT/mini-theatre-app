@@ -45,9 +45,21 @@
             <h2>Подтверждение аккаунта</h2>
             <p>Введите ваше ФИО для доступа к приложению:</p>
             <input type="text" id="fio-input" placeholder="Фамилия Имя Отчество">
+            <select id="role-request">
+                <option value="actor">Актер</option>
+                <option value="workshop_worker">Работник цеха</option>
+                <option value="workshop_head">Заведующий цехом</option>
+            </select>
+            <select id="workshop-request" class="hidden">
+                <option value="costume">Костюмерный</option>
+                <option value="props">Бутафорский</option>
+                <option value="lighting">Осветительный</option>
+                <option value="sound">Звуковой</option>
+                <option value="stage">Монтировочный</option>
+            </select>
             <button onclick="sendForConfirmation()">Отправить на подтверждение</button>
-            <p class="error hidden" id="error-msg">Пожалуйста, заполните ФИО</p>
-            <p>Данные отправятся администратору. После одобрения вы получите полный доступ.</p>
+            <p class="error hidden" id="error-msg">Пожалуйста, заполните ФИО и роль</p>
+            <p>Данные отправятся администратору. После одобрения вы получите доступ.</p>
         </div>
 
         <!-- Главное меню -->
@@ -57,6 +69,31 @@
             <button onclick="startWorkshopTasks()">Задачи цехам</button>
             <button onclick="showRepertoire()">Репертуар на месяц</button>
             <button onclick="showStats()">Статистика</button>
+        </div>
+
+        <!-- Админ-панель (для troupe_head и workshop_head) -->
+        <div id="admin-panel" class="hidden">
+            <h2>Админ-панель</h2>
+            <button onclick="showPendingConfirmations()">Неподтверждённые пользователи</button>
+            <button onclick="manageUsers()">Управление пользователями</button>
+        </div>
+
+        <!-- Неподтверждённые пользователи -->
+        <div id="pending-confirmations" class="hidden">
+            <h2>Неподтверждённые пользователи</h2>
+            <div id="pending-list"></div>
+            <div class="nav-buttons">
+                <button onclick="backToAdminPanel()">Назад</button>
+            </div>
+        </div>
+
+        <!-- Управление пользователями -->
+        <div id="manage-users" class="hidden">
+            <h2>Управление пользователями</h2>
+            <div id="users-list"></div>
+            <div class="nav-buttons">
+                <button onclick="backToAdminPanel()">Назад</button>
+            </div>
         </div>
 
         <!-- Расписание -->
@@ -150,51 +187,85 @@
         const user = tg.initDataUnsafe.user || { id: 123456, username: 'testuser' };
         let isConfirmed = localStorage.getItem('confirmed') === 'true';
         let userFIO = localStorage.getItem('user_fio') || '';
+        let userRole = localStorage.getItem('user_role') || 'pending';
+        let userWorkshop = localStorage.getItem('user_workshop') || null;
         let events = JSON.parse(localStorage.getItem('events') || '[]');
         let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-        let participants = JSON.parse(localStorage.getItem('participants') || '[]'); // список всех актёров с tg_id и fio
+        let participants = JSON.parse(localStorage.getItem('participants') || '[]'); // все пользователи
+        let pendingUsers = JSON.parse(localStorage.getItem('pending_users') || '[]'); // для симуляции неподтвержденных
 
         // Инициализация
         function init() {
+            document.getElementById('role-request').addEventListener('change', function() {
+                const workshopSelect = document.getElementById('workshop-request');
+                if (this.value.includes('workshop')) {
+                    workshopSelect.classList.remove('hidden');
+                } else {
+                    workshopSelect.classList.add('hidden');
+                }
+            });
+
             if (isConfirmed && userFIO) {
                 hideConfirmShowMenu();
+                updateMenuByRole();
             } else {
                 document.getElementById('confirm-section').classList.remove('hidden');
             }
-            loadParticipants(); // Загрузка списка участников (в реальности — с сервера)
+            loadParticipants(); // Заглушка
         }
 
         function hideConfirmShowMenu() {
             document.getElementById('confirm-section').classList.add('hidden');
             document.getElementById('main-menu').classList.remove('hidden');
-            document.getElementById('user-info').textContent = `Добро пожаловать, ${userFIO}!`;
+            document.getElementById('user-info').textContent = `Добро пожаловать, ${userFIO}! Роль: ${getRoleText(userRole)}${userWorkshop ? ' (' + userWorkshop + ')' : ''}`;
         }
 
-        // Подтверждение ФИО
+        function updateMenuByRole() {
+            if (['troupe_head', 'workshop_head'].includes(userRole)) {
+                document.getElementById('admin-panel').classList.remove('hidden');
+            }
+            // Скрыть кнопки, если нет прав
+            if (!['actor', 'troupe_head', 'workshop_head'].includes(userRole)) {
+                document.querySelector('button[onclick="startCreateEvent()"]').classList.add('hidden');
+            }
+            if (!['workshop_head', 'troupe_head'].includes(userRole)) {
+                document.querySelector('button[onclick="startWorkshopTasks()"]').classList.remove('hidden'); // Для workers - только просмотр
+            } else {
+                // Для head - полный доступ
+            }
+        }
+
+        // Подтверждение с ролью
         function sendForConfirmation() {
             const fio = document.getElementById('fio-input').value.trim();
-            if (!fio) {
+            const requestedRole = document.getElementById('role-request').value;
+            const requestedWorkshop = requestedRole.includes('workshop') ? document.getElementById('workshop-request').value : null;
+
+            if (!fio || (requestedRole.includes('workshop') && !requestedWorkshop)) {
                 document.getElementById('error-msg').classList.remove('hidden');
                 return;
             }
 
-            // Отправка админу
             tg.sendData(JSON.stringify({
                 action: 'request_confirmation',
                 tg_id: user.id,
                 username: user.username || '',
-                fio: fio
+                fio: fio,
+                requested_role: requestedRole,
+                requested_workshop: requestedWorkshop
             }));
 
-            // Симуляция одобрения для разработки
-            localStorage.setItem('user_fio', fio);
-            localStorage.setItem('confirmed', 'true');
-            isConfirmed = true;
-            userFIO = fio;
+            // Симуляция: добавляем в pending
+            pendingUsers.push({
+                tg_id: user.id,
+                fio: fio,
+                requested_role: requestedRole,
+                requested_workshop: requestedWorkshop
+            });
+            localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
 
-            tg.showAlert('Заявка отправлена администратору. Доступ открыт (симуляция).');
-            hideConfirmShowMenu();
-            tg.HapticFeedback.notificationOccurred('success');
+            tg.showAlert('Заявка отправлена. Ждите подтверждения (симуляция: добавлено в pending).');
+            // Для теста не открываем меню сразу
         }
 
         // Проверка подтверждения
@@ -208,14 +279,28 @@
 
         // Навигация
         function backToMenu() {
-            document.querySelectorAll('.hidden').forEach(el => el.classList.add('hidden'));
+            hideAllSections();
             document.getElementById('main-menu').classList.remove('hidden');
+            if (['troupe_head', 'workshop_head'].includes(userRole)) {
+                document.getElementById('admin-panel').classList.remove('hidden');
+            }
             tg.BackButton.hide();
         }
 
         function backToWorkshopTasks() {
             document.getElementById('create-task').classList.add('hidden');
             document.getElementById('workshop-tasks').classList.remove('hidden');
+        }
+
+        function backToAdminPanel() {
+            hideAllSections();
+            document.getElementById('main-menu').classList.remove('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+        }
+
+        function hideAllSections() {
+            document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users')
+                .forEach(el => el.classList.add('hidden'));
         }
 
         // ===== РАСПИСАНИЕ =====
@@ -231,18 +316,33 @@
             const list = document.getElementById('events-list');
             list.innerHTML = '';
             const now = new Date();
-            const filtered = events.filter(e => {
+            let filtered = events.filter(e => {
                 const eventDate = new Date(e.datetime);
                 const participant = e.participants.some(p => p.id === user.id);
-                if (!participant) return false;
+                if (!participant && userRole !== 'troupe_head') return false; // Только свои, кроме топ
 
+                let matchesPeriod = false;
                 switch (period) {
-                    case 'today': return isSameDay(eventDate, now);
-                    case 'tomorrow': return isSameDay(eventDate, new Date(now.setDate(now.getDate() + 1)));
-                    case 'week': return eventDate >= now && eventDate <= new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-                    case 'month': return eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear();
-                    default: return true;
+                    case 'today':
+                        matchesPeriod = isSameDay(eventDate, now);
+                        break;
+                    case 'tomorrow':
+                        const tomorrow = new Date(now);
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        matchesPeriod = isSameDay(eventDate, tomorrow);
+                        break;
+                    case 'week':
+                        const weekEnd = new Date(now);
+                        weekEnd.setDate(weekEnd.getDate() + 7);
+                        matchesPeriod = eventDate >= now && eventDate <= weekEnd;
+                        break;
+                    case 'month':
+                        matchesPeriod = eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear();
+                        break;
+                    default:
+                        matchesPeriod = true;
                 }
+                return matchesPeriod;
             });
 
             if (filtered.length === 0) {
@@ -257,6 +357,7 @@
                 div.innerHTML = `
                     <strong>${e.title}</strong><br>
                     ${formatDate(e.datetime)}<br>
+                    Тип: ${getTypeText(e.type)}<br>
                     <span class="status ${e.status || 'planned'}">${getStatusText(e.status || 'planned')}</span>
                 `;
                 list.appendChild(div);
@@ -265,7 +366,10 @@
 
         // ===== СОЗДАНИЕ СОБЫТИЯ =====
         function startCreateEvent() {
-            if (!requireConfirmation()) return;
+            if (!requireConfirmation() || !['actor', 'troupe_head', 'workshop_head'].includes(userRole)) {
+                tg.showAlert('У вас нет прав на создание событий');
+                return;
+            }
             hideAllSections();
             document.getElementById('create-event').classList.remove('hidden');
 
@@ -288,7 +392,7 @@
                 div.className = 'participant';
                 div.innerHTML = `
                     <input type="checkbox" id="part-${p.id}" value="${p.id}">
-                    <label for="part-${p.id}">${p.fio}</label>
+                    <label for="part-${p.id}">${p.fio} (${getRoleText(p.role)})</label>
                 `;
                 container.appendChild(div);
             });
@@ -306,7 +410,10 @@
             }
 
             const selectedParticipants = Array.from(document.querySelectorAll('#participants-list input:checked'))
-                .map(cb => ({ id: parseInt(cb.value), fio: cb.parentNode.querySelector('label').textContent }));
+                .map(cb => ({
+                    id: parseInt(cb.value),
+                    fio: cb.nextElementSibling.textContent.split(' (')[0]
+                }));
 
             const newEvent = {
                 id: Date.now(),
@@ -335,7 +442,46 @@
             tg.BackButton.show().onClick(backToMenu);
         }
 
+        function loadTasks() {
+            const list = document.getElementById('tasks-list');
+            list.innerHTML = '';
+            let filteredTasks = tasks;
+
+            if (['workshop_head', 'workshop_worker'].includes(userRole)) {
+                filteredTasks = tasks.filter(t => t.department === userWorkshop);
+            }
+
+            if (filteredTasks.length === 0) {
+                list.innerHTML = '<p>Задач пока нет</p>';
+                return;
+            }
+
+            filteredTasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+            filteredTasks.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'task';
+                div.innerHTML = `
+                    <strong>${t.title}</strong> (${getDepartmentText(t.department)})<br>
+                    Срок: ${t.deadline}<br>
+                    <span class="status ${t.status}">${getStatusText(t.status)}</span>
+                `;
+                if (userRole === 'workshop_head' || userRole === 'troupe_head') {
+                    div.innerHTML += `
+                        <div class="task-actions">
+                            <button onclick="completeTask(${t.id})">Выполнено</button>
+                            <button onclick="cancelTask(${t.id})">Отменить</button>
+                        </div>
+                    `;
+                }
+                list.appendChild(div);
+            });
+        }
+
         function startCreateTask() {
+            if (!['workshop_head', 'troupe_head'].includes(userRole)) {
+                tg.showAlert('У вас нет прав на создание задач');
+                return;
+            }
             hideAllSections();
             document.getElementById('create-task').classList.remove('hidden');
 
@@ -345,18 +491,27 @@
                 minDate: "today"
             });
 
+            if (userRole === 'workshop_head') {
+                document.getElementById('task-department').value = userWorkshop;
+                document.getElementById('task-department').disabled = true;
+            }
+
             tg.BackButton.show().onClick(backToWorkshopTasks);
         }
 
         function saveTask() {
             const title = document.getElementById('task-title').value.trim();
-            const department = document.getElementById('task-department').value;
+            let department = document.getElementById('task-department').value;
             const deadline = document.getElementById('task-deadline').value;
             const description = document.getElementById('task-description').value.trim();
 
             if (!title || !deadline) {
                 tg.showAlert('Заполните название и срок');
                 return;
+            }
+
+            if (userRole === 'workshop_head') {
+                department = userWorkshop;
             }
 
             const newTask = {
@@ -374,31 +529,6 @@
 
             tg.showAlert('Задача создана');
             startWorkshopTasks();
-        }
-
-        function loadTasks() {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
-            if (tasks.length === 0) {
-                list.innerHTML = '<p>Задач пока нет</p>';
-                return;
-            }
-
-            tasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-            tasks.forEach(t => {
-                const div = document.createElement('div');
-                div.className = 'task';
-                div.innerHTML = `
-                    <strong>${t.title}</strong> (${t.department})<br>
-                    Срок: ${t.deadline}<br>
-                    <span class="status ${t.status}">${getStatusText(t.status)}</span>
-                    <div class="task-actions">
-                        <button onclick="completeTask(${t.id})">Выполнено</button>
-                        <button onclick="cancelTask(${t.id})">Отменить</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
         }
 
         function completeTask(id) {
@@ -426,7 +556,8 @@
 
         function renderRepertoireTable() {
             const container = document.getElementById('repertoire-table-container');
-            const performances = events.filter(e => e.type === 'performance');
+            const now = new Date();
+            const performances = events.filter(e => e.type === 'performance' && new Date(e.datetime).getMonth() === now.getMonth());
             if (performances.length === 0) {
                 container.innerHTML = '<p>Спектаклей в репертуаре нет</p>';
                 return;
@@ -442,7 +573,8 @@
 
         function exportRepertoire() {
             const wb = XLSX.utils.book_new();
-            const data = events.filter(e => e.type === 'performance').map(e => ({
+            const now = new Date();
+            const data = events.filter(e => e.type === 'performance' && new Date(e.datetime).getMonth() === now.getMonth()).map(e => ({
                 Дата: formatDate(e.datetime),
                 Спектакль: e.title,
                 Статус: getStatusText(e.status || 'planned')
@@ -463,10 +595,16 @@
 
         function renderStats() {
             const content = document.getElementById('stats-content');
-            const totalEvents = events.length;
-            const rehearsals = events.filter(e => e.type === 'rehearsal').length;
-            const performances = events.filter(e => e.type === 'performance').length;
-            const myEvents = events.filter(e => e.participants.some(p => p.id === user.id)).length;
+            let totalEvents = events.length;
+            let rehearsals = events.filter(e => e.type === 'rehearsal').length;
+            let performances = events.filter(e => e.type === 'performance').length;
+            let myEvents = events.filter(e => e.participants.some(p => p.id === user.id)).length;
+
+            if (userRole !== 'troupe_head') {
+                totalEvents = myEvents; // Только свои для не-топ
+                rehearsals = events.filter(e => e.type === 'rehearsal' && e.participants.some(p => p.id === user.id)).length;
+                performances = events.filter(e => e.type === 'performance' && e.participants.some(p => p.id === user.id)).length;
+            }
 
             content.innerHTML = `
                 <p>Всего событий: ${totalEvents}</p>
@@ -477,12 +615,195 @@
             `;
         }
 
-        // Вспомогательные функции
-        function hideAllSections() {
-            document.querySelectorAll('#main-menu, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats')
-                .forEach(el => el.classList.add('hidden'));
+        // ===== АДМИН-ПАНЕЛЬ =====
+        function showPendingConfirmations() {
+            if (!['troupe_head', 'workshop_head'].includes(userRole)) return;
+            hideAllSections();
+            document.getElementById('pending-confirmations').classList.remove('hidden');
+            loadPendingList();
+            tg.BackButton.show().onClick(backToAdminPanel);
         }
 
+        function loadPendingList() {
+            const list = document.getElementById('pending-list');
+            list.innerHTML = '';
+            // В реале: tg.sendData({action: 'get_pending'})
+            // Симуляция: из localStorage
+            pendingUsers.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'participant';
+                div.innerHTML = `
+                    <strong>${p.fio}</strong> (запрос: ${getRoleText(p.requested_role)}${p.requested_workshop ? ' (' + getDepartmentText(p.requested_workshop) + ')' : ''})<br>
+                    <select id="assign-role-${p.tg_id}">
+                        <option value="actor">Актер</option>
+                        <option value="workshop_worker">Работник цеха</option>
+                        <option value="workshop_head">Заведующий цехом</option>
+                        ${userRole === 'troupe_head' ? '<option value="troupe_head">Заведующий труппой</option>' : ''}
+                    </select>
+                    <select id="assign-workshop-${p.tg_id}" class="hidden">
+                        <option value="costume">Костюмерный</option>
+                        <option value="props">Бутафорский</option>
+                        <option value="lighting">Осветительный</option>
+                        <option value="sound">Звуковой</option>
+                        <option value="stage">Монтировочный</option>
+                    </select>
+                    <button onclick="assignRole(${p.tg_id})">Назначить</button>
+                    <button onclick="rejectUser(${p.tg_id})">Отклонить</button>
+                `;
+                list.appendChild(div);
+
+                document.getElementById(`assign-role-${p.tg_id}`).addEventListener('change', function() {
+                    const wsSelect = document.getElementById(`assign-workshop-${p.tg_id}`);
+                    if (this.value.includes('workshop')) wsSelect.classList.remove('hidden');
+                    else wsSelect.classList.add('hidden');
+                });
+            });
+            if (pendingUsers.length === 0) {
+                list.innerHTML = '<p>Нет неподтверждённых заявок</p>';
+            }
+        }
+
+        function assignRole(tg_id) {
+            const roleSelect = document.getElementById(`assign-role-${tg_id}`);
+            const role = roleSelect.value;
+            const workshopSelect = document.getElementById(`assign-workshop-${tg_id}`);
+            const workshop = role.includes('workshop') ? workshopSelect.value : null;
+
+            // В реале: tg.sendData({ action: 'set_role', tg_id, role, workshop })
+            // Симуляция: добавляем в participants, удаляем из pending
+            const pendingIndex = pendingUsers.findIndex(p => p.tg_id === tg_id);
+            if (pendingIndex !== -1) {
+                const userData = pendingUsers.splice(pendingIndex, 1)[0];
+                participants.push({
+                    id: tg_id,
+                    fio: userData.fio,
+                    role: role,
+                    workshop: workshop
+                });
+                localStorage.setItem('participants', JSON.stringify(participants));
+                localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
+            }
+
+            // Если это текущий пользователь
+            if (tg_id === user.id) {
+                localStorage.setItem('user_role', role);
+                localStorage.setItem('user_workshop', workshop);
+                localStorage.setItem('confirmed', 'true');
+                isConfirmed = true;
+                userRole = role;
+                userWorkshop = workshop;
+                hideConfirmShowMenu();
+                updateMenuByRole();
+            }
+
+            tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
+            loadPendingList();
+        }
+
+        function rejectUser(tg_id) {
+            // В реале: tg.sendData({ action: 'reject_user', tg_id })
+            // Симуляция
+            const pendingIndex = pendingUsers.findIndex(p => p.tg_id === tg_id);
+            if (pendingIndex !== -1) {
+                pendingUsers.splice(pendingIndex, 1);
+                localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
+            }
+            tg.showAlert('Заявка отклонена');
+            loadPendingList();
+        }
+
+        function manageUsers() {
+            if (userRole !== 'troupe_head') {
+                tg.showAlert('Доступ только для заведующего труппой');
+                return;
+            }
+            hideAllSections();
+            document.getElementById('manage-users').classList.remove('hidden');
+            loadUsersList();
+            tg.BackButton.show().onClick(backToAdminPanel);
+        }
+
+        function loadUsersList() {
+            const list = document.getElementById('users-list');
+            list.innerHTML = '';
+            // В реале: запрос к бэкенду
+            // Симуляция
+            participants.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'participant';
+                div.innerHTML = `
+                    <strong>${p.fio}</strong> (${getRoleText(p.role)}${p.workshop ? ' (' + getDepartmentText(p.workshop) + ')' : ''})<br>
+                    <select id="change-role-${p.id}">
+                        <option value="${p.role}" selected>Текущая: ${getRoleText(p.role)}</option>
+                        <option value="actor">Актер</option>
+                        <option value="workshop_worker">Работник цеха</option>
+                        <option value="workshop_head">Заведующий цехом</option>
+                        <option value="troupe_head">Заведующий труппой</option>
+                    </select>
+                    <select id="change-workshop-${p.id}" ${!p.role.includes('workshop') ? 'class="hidden"' : ''}>
+                        <option value="${p.workshop || ''}" selected>${p.workshop ? getDepartmentText(p.workshop) : 'Не назначен'}</option>
+                        <option value="costume">Костюмерный</option>
+                        <option value="props">Бутафорский</option>
+                        <option value="lighting">Осветительный</option>
+                        <option value="sound">Звуковой</option>
+                        <option value="stage">Монтировочный</option>
+                    </select>
+                    <button onclick="changeRole(${p.id})">Изменить</button>
+                    <button onclick="removeUser(${p.id})">Удалить</button>
+                `;
+                list.appendChild(div);
+
+                document.getElementById(`change-role-${p.id}`).addEventListener('change', function() {
+                    const wsSelect = document.getElementById(`change-workshop-${p.id}`);
+                    if (this.value.includes('workshop')) wsSelect.classList.remove('hidden');
+                    else wsSelect.classList.add('hidden');
+                });
+            });
+            if (participants.length === 0) {
+                list.innerHTML = '<p>Нет пользователей</p>';
+            }
+        }
+
+        function changeRole(id) {
+            const roleSelect = document.getElementById(`change-role-${id}`);
+            const role = roleSelect.value;
+            const workshopSelect = document.getElementById(`change-workshop-${id}`);
+            const workshop = role.includes('workshop') ? workshopSelect.value : null;
+
+            // В реале: tg.sendData
+            // Симуляция
+            const userIndex = participants.findIndex(p => p.id === id);
+            if (userIndex !== -1) {
+                participants[userIndex].role = role;
+                participants[userIndex].workshop = workshop;
+                localStorage.setItem('participants', JSON.stringify(participants));
+            }
+
+            if (id === user.id) {
+                userRole = role;
+                userWorkshop = workshop;
+                localStorage.setItem('user_role', role);
+                localStorage.setItem('user_workshop', workshop);
+                updateMenuByRole();
+            }
+
+            tg.showAlert('Роль изменена');
+            loadUsersList();
+        }
+
+        function removeUser(id) {
+            // В реале: tg.sendData
+            // Симуляция
+            const userIndex = participants.findIndex(p => p.id === id);
+            if (userIndex !== -1) {
+                participants.splice(userIndex, 1);
+                localStorage.setItem('participants', JSON.stringify(participants));
+            }
+            tg.showAlert('Пользователь удалён');
+            loadUsersList();
+        }
+
+        // Вспомогательные функции
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -500,14 +821,44 @@
             }
         }
 
+        function getTypeText(type) {
+            switch (type) {
+                case 'rehearsal': return 'Репетиция';
+                case 'performance': return 'Спектакль';
+                case 'meeting': return 'Собрание';
+                case 'other': return 'Другое';
+                default: return type;
+            }
+        }
+
+        function getRoleText(role) {
+            switch (role) {
+                case 'troupe_head': return 'Заведующий труппой';
+                case 'workshop_head': return 'Заведующий цехом';
+                case 'actor': return 'Актер';
+                case 'workshop_worker': return 'Работник цеха';
+                default: return 'Не назначено';
+            }
+        }
+
+        function getDepartmentText(dept) {
+            switch (dept) {
+                case 'costume': return 'Костюмерный';
+                case 'props': return 'Бутафорский';
+                case 'lighting': return 'Осветительный';
+                case 'sound': return 'Звуковой';
+                case 'stage': return 'Монтировочный';
+                default: return dept;
+            }
+        }
+
         function loadParticipants() {
-            // В реальном приложении — запрос к бэкенду
-            // Здесь заглушка
+            // Заглушка
             if (participants.length === 0) {
                 participants = [
-                    { id: user.id, fio: userFIO || 'Тестовый актёр' },
-                    { id: 999999, fio: 'Иванов Иван Иванович' },
-                    { id: 999998, fio: 'Петрова Анна Сергеевна' }
+                    { id: 123456, fio: 'Админ Тестовый', role: 'troupe_head' },
+                    { id: 999999, fio: 'Иванов Иван Иванович', role: 'actor' },
+                    { id: 999998, fio: 'Петрова Анна Сергеевна', role: 'workshop_head', workshop: 'costume' }
                 ];
                 localStorage.setItem('participants', JSON.stringify(participants));
             }
