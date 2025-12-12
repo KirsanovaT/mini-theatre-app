@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Театральный планировщик</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Flatpickr для календаря -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- SheetJS для XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -23,11 +28,16 @@
         }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid var(--tg-theme-hint-color); border-radius: 8px; background: var(--tg-theme-bg-color); color: var(--tg-theme-text-color); }
-        .event { background: var(--tg-theme-secondary-bg-color); padding: 10px; margin: 10px 0; border-radius: 8px; }
+        .event { background: var(--tg-theme-secondary-bg-color); padding: 10px; margin: 10px 0; border-radius: 8px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .hidden { display: none; }
         .step { display: none; }
         .step.active { display: block; }
         .error { color: var(--tg-theme-destructive-color); }
+        .participant { display: flex; align-items: center; margin: 5px 0; }
+        .participant input[type="checkbox"] { width: auto; margin-right: 10px; }
+        .stats-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        .stats-table th, .stats-table td { padding: 8px; border: 1px solid var(--tg-theme-hint-color); text-align: left; }
     </style>
 </head>
 <body>
@@ -38,17 +48,22 @@
         <div id="main-menu">
             <button onclick="showSchedule()">Моё расписание</button>
             <button onclick="startCreateEvent()">Создать событие</button>
-            <button onclick="showStats()">Статистика</button> <!-- Упрощённо -->
+            <button onclick="showStats()">Статистика</button>
         </div>
         
         <!-- Расписание -->
         <div id="schedule" class="hidden">
-            <h2>Расписание на сегодня</h2>
+            <h2>Расписание</h2>
+            <select id="period-select" onchange="showSchedule(this.value)">
+                <option value="today">Сегодня</option>
+                <option value="tomorrow">Завтра</option>
+                <option value="week">Неделя</option>
+            </select>
             <div id="events-list"></div>
             <button onclick="backToMenu()">Назад</button>
         </div>
         
-        <!-- Создание события (шаги FSM-like) -->
+        <!-- Создание события (шаги) -->
         <div id="create-event" class="hidden">
             <h2>Создать событие</h2>
             
@@ -61,30 +76,45 @@
                 <button onclick="nextStep('venue')">Далее</button>
             </div>
             
-            <!-- Шаг 2: Дата/Время -->
+            <!-- Шаг 2: Дата/Время/Площадка -->
             <div id="step-venue" class="step">
                 <select id="venue-select">
                     <option value="1">Основная сцена</option>
                     <option value="2">Малая сцена</option>
                 </select>
-                <input type="datetime-local" id="datetime-start">
-                <input type="datetime-local" id="datetime-end">
+                <input type="text" id="datetime-start" placeholder="Выберите дату/время начала">
+                <input type="text" id="datetime-end" placeholder="Выберите дату/время конца">
+                <div id="participants-list">
+                    <div class="participant"><input type="checkbox" id="part-1" checked> <label for="part-1">Вы (Артист)</label></div>
+                    <div class="participant"><input type="checkbox" id="part-2"> <label for="part-2">Артист 2</label></div>
+                    <div class="participant"><input type="checkbox" id="part-3"> <label for="part-3">Режиссёр</label></div>
+                </div>
                 <button onclick="nextStep('confirm')">Проверить конфликты</button>
                 <div id="conflicts" class="error hidden"></div>
             </div>
             
             <!-- Шаг 3: Подтверждение -->
             <div id="step-confirm" class="step">
-                <p>Участники: Вы (артист)</p>
+                <p>Название: <input type="text" id="event-title" placeholder="Введите название"></p>
+                <p>Участники выбраны: <span id="selected-count">0</span></p>
                 <button onclick="createEvent()">Создать</button>
                 <button onclick="prevStep()">Назад</button>
             </div>
         </div>
         
-        <!-- Статистика (упрощённо) -->
+        <!-- Статистика (без баллов) -->
         <div id="stats" class="hidden">
             <h2>Ваша статистика</h2>
-            <p>Баллы: 150 | Спектаклей: 5 | Часов: 20</p>
+            <select id="stats-period" onchange="showStats(this.value)">
+                <option value="month">Месяц</option>
+                <option value="season">Сезон</option>
+            </select>
+            <table class="stats-table">
+                <thead><tr><th>Событие</th><th>Часы</th><th>Номер</th></tr></thead>
+                <tbody id="stats-table-body"></tbody>
+            </table>
+            <p><strong>Итого событий: <span id="total-events">0</span> | Общих часов: <span id="total-hours">0</span></strong></p>
+            <button onclick="exportStats()">Экспорт в XLSX</button>
             <button onclick="backToMenu()">Назад</button>
         </div>
     </div>
@@ -97,24 +127,30 @@
         // Адаптация темы
         tg.onEvent('themeChanged', () => {
             document.body.style.background = tg.themeParams.bg_color;
-            // Другие цвета...
         });
 
-        // Инициализация: Получить user из initData
+        // User и роль (симуляция)
         const user = tg.initDataUnsafe.user;
-        if (!user) {
-            alert('Ошибка авторизации');
-            tg.close();
-        }
-        console.log('User:', user); // Роль: симулируем по user.id % 3 (0=artist)
+        const role = (user.id % 3 === 0) ? 'artist' : (user.id % 3 === 1 ? 'director' : 'admin');
 
-        // Симуляция данных (localStorage)
+        // Данные (localStorage + симуляция)
         function getEvents() {
             return JSON.parse(localStorage.getItem('events') || '[]');
         }
         function saveEvents(events) {
             localStorage.setItem('events', JSON.stringify(events));
         }
+        function getParticipants() {
+            return [
+                { id: 1, name: 'Вы (Артист)' },
+                { id: 2, name: 'Артист 2' },
+                { id: 3, name: 'Режиссёр' }
+            ];
+        }
+
+        // Инициализация календаря
+        flatpickr("#datetime-start", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date() });
+        flatpickr("#datetime-end", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: new Date(Date.now() + 2 * 60 * 60 * 1000) });
 
         // Главное меню
         function backToMenu() {
@@ -126,36 +162,40 @@
             tg.MainButton.hide();
         }
 
-        // Расписание
+        // Расписание (улучшенное с периодами)
         function showSchedule(period = 'today') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('schedule').classList.remove('hidden');
             
-            const events = getEvents().filter(e => {
-                const now = new Date();
-                const start = new Date(e.datetime_start);
-                if (period === 'today') return start.toDateString() === now.toDateString();
-                return true; // Упрощённо
-            });
-            
+            const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period));
             const list = document.getElementById('events-list');
             list.innerHTML = events.map(e => 
                 `<div class="event">${e.title} (${e.type})<br>${new Date(e.datetime_start).toLocaleString()} - ${new Date(e.datetime_end).toLocaleString()} на ${e.venue}</div>`
             ).join('') || '<p>Нет событий</p>';
             
-            tg.MainButton.setText('Обновить').show().onClick(() => showSchedule());
+            tg.MainButton.setText('Обновить').show().onClick(() => showSchedule(period));
             tg.HapticFeedback.impactOccurred('light');
         }
+        function filterByPeriod(dateStr, period) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            switch (period) {
+                case 'today': return date.toDateString() === now.toDateString();
+                case 'tomorrow': return date.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+                case 'week': return date >= now && date <= new Date(now.getTime() + 7 * 86400000);
+                case 'month': return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                case 'season': return date >= new Date(now.getFullYear(), 0, 1) && date <= new Date(now.getFullYear(), 11, 31);
+                default: return true;
+            }
+        }
 
-        // Создание события
+        // Создание события (FSM)
         let currentStep = 'type';
         function startCreateEvent() {
-            // Проверка роли (упрощённо)
-            if (user.id % 3 !== 0) { // Симулируем artist=0
-                alert('Нет прав для создания событий');
+            if (role !== 'director' && role !== 'admin') {
+                tg.showAlert('Нет прав для создания событий');
                 return;
             }
-            
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('create-event').classList.remove('hidden');
             showStep('type');
@@ -166,6 +206,7 @@
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(`step-${step}`).classList.add('active');
             currentStep = step;
+            if (step === 'venue') updateSelectedCount();
         }
 
         function nextStep(next) {
@@ -187,19 +228,26 @@
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
         }
 
-        // Проверка конфликтов (JS-аналог SQL JOIN)
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('#participants-list input:checked').length;
+            document.getElementById('selected-count').textContent = count;
+        }
+
+        // Проверка конфликтов
         function checkConflicts() {
-            const start = new Date(document.getElementById('datetime-start').value);
-            const end = new Date(document.getElementById('datetime-end').value);
+            const start = document.getElementById('datetime-start').value;
+            const end = document.getElementById('datetime-end').value;
             const venueId = document.getElementById('venue-select').value;
+            const selectedParts = Array.from(document.querySelectorAll('#participants-list input:checked')).map(cb => parseInt(cb.id.split('-')[1]));
             const events = getEvents();
             
+            // Симуляция overlap для venue и participants
             const conflicts = events.filter(e => {
                 const eStart = new Date(e.datetime_start);
                 const eEnd = new Date(e.datetime_end);
-                return e.venue_id === parseInt(venueId) && // Площадка
-                       !(end <= eStart || start >= eEnd) && // Overlap
-                       e.status !== 'cancelled';
+                const overlap = !(new Date(end) <= eStart || new Date(start) >= eEnd);
+                return e.venue_id === parseInt(venueId) && overlap && e.status !== 'cancelled' &&
+                       selectedParts.some(p => e.participants.includes(p));
             });
             
             const conflictsDiv = document.getElementById('conflicts');
@@ -217,14 +265,15 @@
         // Создать событие
         function createEvent() {
             const type = document.getElementById('event-type').value;
-            const title = prompt('Название события:') || 'Новое событие';
+            const title = document.getElementById('event-title').value || 'Новое событие';
             const venueId = document.getElementById('venue-select').value;
             const venue = venueId === '1' ? 'Основная сцена' : 'Малая сцена';
             const start = document.getElementById('datetime-start').value;
             const end = document.getElementById('datetime-end').value;
+            const participants = Array.from(document.querySelectorAll('#participants-list input:checked')).map(cb => parseInt(cb.id.split('-')[1]));
             
-            if (!start || !end || start >= end) {
-                alert('Неверные даты');
+            if (!start || !end || new Date(start) >= new Date(end) || participants.length === 0) {
+                tg.showAlert('Проверьте данные');
                 return;
             }
             
@@ -233,7 +282,7 @@
                 type, title, venue_id: parseInt(venueId), venue,
                 datetime_start: start, datetime_end: end,
                 status: 'planned',
-                participants: [user.id] // Упрощённо
+                participants
             };
             
             const events = getEvents();
@@ -243,20 +292,64 @@
             tg.showAlert('Событие создано!');
             tg.HapticFeedback.notificationOccurred('success');
             
-            // Отправка данных боту (JSON строка)
+            // Отправка боту
             tg.sendData(JSON.stringify({ action: 'create_event', event: newEvent }));
             
             backToMenu();
         }
 
-        // Статистика (симуляция)
-        function showStats() {
+        // Статистика (без баллов)
+        function showStats(period = 'month') {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('stats').classList.remove('hidden');
-            tg.MainButton.hide();
+            
+            const events = getEvents().filter(e => filterByPeriod(e.datetime_start, period));
+            let totalHours = 0;
+            const tableBody = document.getElementById('stats-table-body');
+            tableBody.innerHTML = '';
+            
+            events.forEach((e, idx) => {
+                const durationHours = (new Date(e.datetime_end) - new Date(e.datetime_start)) / (1000 * 60 * 60);
+                totalHours += durationHours;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${e.title} (${e.type})</td>
+                    <td>${durationHours.toFixed(1)}</td>
+                    <td>${idx + 1}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            document.getElementById('total-events').textContent = events.length;
+            document.getElementById('total-hours').textContent = totalHours.toFixed(1);
+            tg.MainButton.setText('Обновить').show().onClick(() => showStats(period));
         }
 
-        // Кнопка назад
+        // Экспорт XLSX (без баллов)
+        function exportStats() {
+            const wb = XLSX.utils.book_new();
+            const wsData = [['Событие', 'Часы', 'Номер']];
+            const events = getEvents(); // Упрощённо, без периода — можно доработать
+            let totalHours = 0;
+            events.forEach((e, idx) => {
+                const durationHours = (new Date(e.datetime_end) - new Date(e.datetime_start)) / (1000 * 60 * 60);
+                totalHours += durationHours;
+                wsData.push([e.title, durationHours.toFixed(1), idx + 1]);
+            });
+            wsData.push(['', '', '']); // Пустая строка
+            wsData.push(['Итого событий', events.length, '']); // Без баллов
+            wsData.push(['Общих часов', totalHours.toFixed(1), '']);
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Статистика');
+            XLSX.writeFile(wb, 'theatre_stats.xlsx');
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        // Слушатели
+        document.querySelectorAll('#participants-list input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+
         tg.BackButton.show().onClick(backToMenu);
     </script>
 </body>
