@@ -11,31 +11,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: var(--tg-theme-bg-color); 
-            color: var(--tg-theme-text-color); 
-            transition: background 0.3s, color 0.3s; 
+        /* Твой стиль без изменений */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            transition: background 0.3s, color 0.3s;
         }
-        .container { 
-            max-width: 400px; 
-            margin: 0 auto; 
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
         }
-        h1, h2 { 
-            text-align: center; 
+        h1, h2 {
+            text-align: center;
             margin-bottom: 20px;
         }
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            background: var(--tg-theme-button-color); 
-            color: var(--tg-theme-button-text-color); 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
             font-size: 16px;
             transition: background 0.2s, transform 0.1s;
             display: flex;
@@ -47,19 +48,19 @@
             background: var(--tg-theme-button-color-hover, var(--tg-theme-button-color));
             transform: scale(1.02);
         }
-        button:disabled { 
-            opacity: 0.5; 
-            cursor: not-allowed; 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-        input, select, textarea { 
-            width: 100%; 
-            padding: 10px; 
-            margin: 10px 0; 
-            border: 1px solid var(--tg-theme-hint-color); 
-            border-radius: 8px; 
-            background: var(--tg-theme-secondary-bg-color); 
-            color: var(--tg-theme-text-color); 
-            box-sizing: border-box; 
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--tg-theme-hint-color);
+            border-radius: 8px;
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            box-sizing: border-box;
             font-size: 16px;
             transition: border 0.2s;
         }
@@ -67,95 +68,95 @@
             border-color: var(--tg-theme-button-color);
             outline: none;
         }
-        .event, .task { 
-            background: var(--tg-theme-secondary-bg-color); 
-            padding: 15px; 
-            margin: 15px 0; 
-            border-radius: 12px; 
+        .event, .task {
+            background: var(--tg-theme-secondary-bg-color);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            animation: fadeIn 0.3s ease-in-out; 
+            animation: fadeIn 0.3s ease-in-out;
         }
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: translateY(0); } 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .hidden { 
-            display: none; 
+        .hidden {
+            display: none;
         }
-        .error { 
-            color: var(--tg-theme-destructive-text-color); 
+        .error {
+            color: var(--tg-theme-destructive-text-color);
             text-align: center;
             margin-top: 5px;
         }
-        .participant { 
-            display: flex; 
-            align-items: center; 
-            margin: 10px 0; 
+        .participant {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
             padding: 5px;
             border-radius: 8px;
             background: var(--tg-theme-bg-color);
         }
-        .participant input[type="checkbox"] { 
-            width: auto; 
-            margin-right: 10px; 
+        .participant input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
         }
-        .stats-table, .repertoire-table, .tasks-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0; 
+        .stats-table, .repertoire-table, .tasks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .stats-table th, .stats-table td, .repertoire-table th, .repertoire-table td, .tasks-table th, .tasks-table td { 
-            padding: 12px; 
-            border: 1px solid var(--tg-theme-hint-color); 
-            text-align: left; 
-            font-size: 0.9em; 
+        .stats-table th, .stats-table td, .repertoire-table th, .repertoire-table td, .tasks-table th, .tasks-table td {
+            padding: 12px;
+            border: 1px solid var(--tg-theme-hint-color);
+            text-align: left;
+            font-size: 0.9em;
         }
         th {
             background: var(--tg-theme-secondary-bg-color);
             font-weight: bold;
         }
-        .nav-buttons { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-top: 20px; 
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
         }
-        .nav-buttons button { 
-            width: 48%; 
+        .nav-buttons button {
+            width: 48%;
         }
-        .task-actions { 
-            display: flex; 
-            justify-content: space-around; 
-            margin-top: 10px; 
+        .task-actions {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
         }
-        .task-actions button { 
-            width: 45%; 
-            padding: 8px; 
-            font-size: 0.9em; 
+        .task-actions button {
+            width: 45%;
+            padding: 8px;
+            font-size: 0.9em;
             border-radius: 6px;
         }
-        .status { 
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            font-size: 0.8em; 
-            font-weight: bold; 
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
         }
-        .status.planned { 
-            background: #fff3cd; 
-            color: #856404; 
+        .status.planned {
+            background: #fff3cd;
+            color: #856404;
         }
-        .status.confirmed { 
-            background: #d4edda; 
-            color: #155724; 
+        .status.confirmed {
+            background: #d4edda;
+            color: #155724;
         }
-        .status.cancelled { 
-            background: #f8d7da; 
-            color: #721c24; 
+        .status.cancelled {
+            background: #f8d7da;
+            color: #721c24;
         }
-        #user-info { 
-            text-align: center; 
-            margin: 15px 0; 
-            font-weight: bold; 
+        #user-info {
+            text-align: center;
+            margin: 15px 0;
+            font-weight: bold;
             color: var(--tg-theme-hint-color);
         }
         #main-menu button, #admin-panel button {
@@ -168,8 +169,7 @@
     <div class="container">
         <h1>Театральный планировщик</h1>
         <div id="user-info"></div>
-
-       // <!-- Форма подтверждения -->
+        <!-- Форма подтверждения -->
         <div id="confirm-section">
             <h2>Подтверждение аккаунта</h2>
             <p>Введите ваше ФИО для доступа к приложению:</p>
@@ -189,8 +189,7 @@
             <button onclick="sendForConfirmation()"><i class="fas fa-check"></i> Отправить на подтверждение</button>
             <p class="error hidden" id="error-msg">Пожалуйста, заполните ФИО и роль</p>
             <p>Данные отправятся администратору. После одобрения вы получите доступ.</p>
-        </div>//
-
+        </div>
         <!-- Главное меню -->
         <div id="main-menu" class="hidden">
             <button onclick="showSchedule()"><i class="fas fa-calendar-alt"></i> Расписание</button>
@@ -199,7 +198,6 @@
             <button onclick="showRepertoire()"><i class="fas fa-book"></i> Репертуар на месяц</button>
             <button onclick="showStats()"><i class="fas fa-chart-bar"></i> Статистика</button>
         </div>
-
         <!-- Админ-панель (для troupe_head и workshop_head) -->
         <div id="admin-panel" class="hidden">
             <h2>Админ-панель</h2>
@@ -208,7 +206,6 @@
             <button onclick="manageEvents()"><i class="fas fa-calendar-cog"></i> Управление событиями</button>
             <button onclick="manageTasks()"><i class="fas fa-tasks-alt"></i> Управление задачами</button>
         </div>
-
         <!-- Неподтверждённые пользователи -->
         <div id="pending-confirmations" class="hidden">
             <h2>Неподтверждённые пользователи</h2>
@@ -217,7 +214,6 @@
                 <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Управление пользователями -->
         <div id="manage-users" class="hidden">
             <h2>Управление пользователями</h2>
@@ -226,7 +222,6 @@
                 <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Управление событиями -->
         <div id="manage-events" class="hidden">
             <h2>Управление событиями</h2>
@@ -235,7 +230,6 @@
                 <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Управление задачами -->
         <div id="manage-tasks" class="hidden">
             <h2>Управление задачами</h2>
@@ -244,7 +238,6 @@
                 <button onclick="backToAdminPanel()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Расписание -->
         <div id="schedule" class="hidden">
             <h2>Расписание</h2>
@@ -259,7 +252,6 @@
                 <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Создание события -->
         <div id="create-event" class="hidden">
             <h2>Создать событие</h2>
@@ -278,7 +270,6 @@
                 <button onclick="backToMenu()"><i class="fas fa-times"></i> Отмена</button>
             </div>
         </div>
-
         <!-- Задачи цехам -->
         <div id="workshop-tasks" class="hidden">
             <h2>Задачи цехам</h2>
@@ -288,7 +279,6 @@
                 <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Создание задачи -->
         <div id="create-task" class="hidden">
             <h2>Новая задача для цеха</h2>
@@ -307,7 +297,6 @@
                 <button onclick="backToWorkshopTasks()"><i class="fas fa-times"></i> Отмена</button>
             </div>
         </div>
-
         <!-- Репертуар на месяц -->
         <div id="repertoire" class="hidden">
             <h2>Репертуар на месяц</h2>
@@ -317,7 +306,6 @@
                 <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-
         <!-- Статистика -->
         <div id="stats" class="hidden">
             <h2>Статистика</h2>
@@ -327,24 +315,38 @@
             </div>
         </div>
     </div>
-
     <script>
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-
         const user = tg.initDataUnsafe.user || { id: 123456, username: 'testuser' };
-        let isConfirmed = localStorage.getItem('confirmed') === 'true';
-        let userFIO = localStorage.getItem('user_fio') || '';
-        let userRole = localStorage.getItem('user_role') || 'pending';
-        let userWorkshop = localStorage.getItem('user_workshop') || null;
-        let events = JSON.parse(localStorage.getItem('events') || '[]');
-        let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-        let participants = JSON.parse(localStorage.getItem('participants') || '[]'); // все пользователи
-        let pendingUsers = JSON.parse(localStorage.getItem('pending_users') || '[]'); // для симуляции неподтвержденных
+        const initData = tg.initData;  // Для аутентификации
+        const API_URL = 'http://localhost:3000/api';  // Замени на URL backend
+
+        let userFIO = '';
+        let userRole = 'pending';
+        let userWorkshop = null;
+        let isConfirmed = false;
+        let events = [];
+        let tasks = [];
+        let participants = [];
+        let pendingUsers = [];
+
+        // Хелпер для fetch с аутентификацией
+        async function apiFetch(endpoint, method = 'GET', body = null) {
+            const headers = { 'Authorization': initData };
+            if (body) headers['Content-Type'] = 'application/json';
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : null
+            });
+            if (!response.ok) throw new Error('API error');
+            return response.json();
+        }
 
         // Инициализация
-        function init() {
+        async function init() {
             document.getElementById('role-request').addEventListener('change', function() {
                 const workshopSelect = document.getElementById('workshop-request');
                 if (this.value.includes('workshop')) {
@@ -353,14 +355,28 @@
                     workshopSelect.classList.add('hidden');
                 }
             });
-
+            await loadUser();
             if (isConfirmed && userFIO) {
                 hideConfirmShowMenu();
                 updateMenuByRole();
             } else {
                 document.getElementById('confirm-section').classList.remove('hidden');
             }
-            loadParticipants(); // Заглушка
+            await loadParticipants();
+        }
+
+        async function loadUser() {
+            try {
+                const userData = await apiFetch('/user');
+                if (userData) {
+                    userFIO = userData.fio;
+                    userRole = userData.role;
+                    userWorkshop = userData.workshop;
+                    isConfirmed = userData.confirmed;
+                }
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function hideConfirmShowMenu() {
@@ -373,7 +389,6 @@
             if (['troupe_head', 'workshop_head'].includes(userRole)) {
                 document.getElementById('admin-panel').classList.remove('hidden');
             }
-            // Скрыть кнопки, если нет прав
             if (!['actor', 'troupe_head'].includes(userRole)) {
                 document.querySelector('button[onclick="startCreateEvent()"]').classList.add('hidden');
             }
@@ -389,36 +404,25 @@
         }
 
         // Подтверждение с ролью
-        function sendForConfirmation() {
+        async function sendForConfirmation() {
             const fio = document.getElementById('fio-input').value.trim();
             const requestedRole = document.getElementById('role-request').value;
             const requestedWorkshop = requestedRole.includes('workshop') ? document.getElementById('workshop-request').value : null;
-
             if (!fio || (requestedRole.includes('workshop') && !requestedWorkshop)) {
                 document.getElementById('error-msg').classList.remove('hidden');
                 return;
             }
-
-            tg.sendData(JSON.stringify({
-                action: 'request_confirmation',
-                tg_id: user.id,
-                username: user.username || '',
-                fio: fio,
-                requested_role: requestedRole,
-                requested_workshop: requestedWorkshop
-            }));
-
-            // Симуляция: добавляем в pending
-            pendingUsers.push({
-                tg_id: user.id,
-                fio: fio,
-                requested_role: requestedRole,
-                requested_workshop: requestedWorkshop
-            });
-            localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
-
-            tg.showAlert('Заявка отправлена. Ждите подтверждения (симуляция: добавлено в pending).');
-            // Для теста не открываем меню сразу
+            try {
+                await apiFetch('/request_confirmation', 'POST', {
+                    fio,
+                    requested_role: requestedRole,
+                    requested_workshop: requestedWorkshop,
+                    username: user.username || ''
+                });
+                tg.showAlert('Заявка отправлена. Ждите подтверждения.');
+            } catch (e) {
+                tg.showAlert('Ошибка отправки');
+            }
         }
 
         // Проверка подтверждения
@@ -439,18 +443,15 @@
             }
             tg.BackButton.hide();
         }
-
         function backToWorkshopTasks() {
             document.getElementById('create-task').classList.add('hidden');
             document.getElementById('workshop-tasks').classList.remove('hidden');
         }
-
         function backToAdminPanel() {
             hideAllSections();
             document.getElementById('main-menu').classList.remove('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
         }
-
         function hideAllSections() {
             document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users, #manage-events, #manage-tasks')
                 .forEach(el => el.classList.add('hidden'));
@@ -464,8 +465,8 @@
             loadSchedule('today');
             tg.BackButton.show().onClick(backToMenu);
         }
-
-        function loadSchedule(period) {
+        async function loadSchedule(period) {
+            await loadEvents();
             const list = document.getElementById('events-list');
             list.innerHTML = '';
             const now = new Date();
@@ -494,17 +495,13 @@
                 }
                 return matchesPeriod;
             });
-
-            // Для базовых ролей - фильтр своих событий, для head - все
             if (['actor', 'workshop_worker'].includes(userRole)) {
                 filtered = filtered.filter(e => e.participants.some(p => p.id === user.id));
             }
-
             if (filtered.length === 0) {
                 list.innerHTML = '<p>На выбранный период событий нет.</p>';
                 return;
             }
-
             filtered.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
             filtered.forEach(e => {
                 const div = document.createElement('div');
@@ -527,18 +524,15 @@
             }
             hideAllSections();
             document.getElementById('create-event').classList.remove('hidden');
-
             flatpickr("#event-datetime", {
                 enableTime: true,
                 dateFormat: "d.m.Y H:i",
                 locale: "ru",
                 minDate: "today"
             });
-
             renderParticipantsList();
             tg.BackButton.show().onClick(backToMenu);
         }
-
         function renderParticipantsList() {
             const container = document.getElementById('participants-list');
             container.innerHTML = '<h3>Участники:</h3>';
@@ -546,46 +540,42 @@
                 const div = document.createElement('div');
                 div.className = 'participant';
                 div.innerHTML = `
-                    <input type="checkbox" id="part-${p.id}" value="${p.id}">
-                    <label for="part-${p.id}">${p.fio} (${getRoleText(p.role)})</label>
+                    <input type="checkbox" id="part-${p.tg_id}" value="${p.tg_id}">
+                    <label for="part-${p.tg_id}">${p.fio} (${getRoleText(p.role)})</label>
                 `;
                 container.appendChild(div);
             });
         }
-
-        function saveEvent() {
+        async function saveEvent() {
             const title = document.getElementById('event-title').value.trim();
             const datetime = document.getElementById('event-datetime').value;
             const type = document.getElementById('event-type').value;
             const description = document.getElementById('event-description').value.trim();
-
             if (!title || !datetime) {
                 tg.showAlert('Заполните название и дату/время');
                 return;
             }
-
             const selectedParticipants = Array.from(document.querySelectorAll('#participants-list input:checked'))
                 .map(cb => ({
                     id: parseInt(cb.value),
                     fio: cb.nextElementSibling.textContent.split(' (')[0]
                 }));
-
             const newEvent = {
-                id: Date.now(),
                 title,
                 datetime,
                 type,
                 description,
                 participants: selectedParticipants,
                 status: 'planned',
-                createdBy: user.id
+                created_by: user.id
             };
-
-            events.push(newEvent);
-            localStorage.setItem('events', JSON.stringify(events));
-
-            tg.showAlert('Событие создано');
-            backToMenu();
+            try {
+                await apiFetch('/events', 'POST', newEvent);
+                tg.showAlert('Событие создано');
+                backToMenu();
+            } catch (e) {
+                tg.showAlert('Ошибка сохранения');
+            }
         }
 
         // ===== ЗАДАЧИ ЦЕХАМ =====
@@ -596,21 +586,18 @@
             loadTasks();
             tg.BackButton.show().onClick(backToMenu);
         }
-
-        function loadTasks() {
+        async function loadTasks() {
+            await loadTasksData();
             const list = document.getElementById('tasks-list');
             list.innerHTML = '';
             let filteredTasks = tasks;
-
             if (['workshop_head', 'workshop_worker'].includes(userRole)) {
                 filteredTasks = tasks.filter(t => t.department === userWorkshop);
             }
-
             if (filteredTasks.length === 0) {
                 list.innerHTML = '<p>Задач пока нет</p>';
                 return;
             }
-
             filteredTasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
             filteredTasks.forEach(t => {
                 const div = document.createElement('div');
@@ -637,7 +624,6 @@
                 list.appendChild(div);
             });
         }
-
         function startCreateTask() {
             if (!['workshop_head', 'troupe_head'].includes(userRole)) {
                 tg.showAlert('У вас нет прав на создание задач');
@@ -645,65 +631,60 @@
             }
             hideAllSections();
             document.getElementById('create-task').classList.remove('hidden');
-
             flatpickr("#task-deadline", {
                 dateFormat: "d.m.Y",
                 locale: "ru",
                 minDate: "today"
             });
-
             if (userRole === 'workshop_head') {
                 document.getElementById('task-department').value = userWorkshop;
                 document.getElementById('task-department').disabled = true;
             }
-
             tg.BackButton.show().onClick(backToWorkshopTasks);
         }
-
-        function saveTask() {
+        async function saveTask() {
             const title = document.getElementById('task-title').value.trim();
             let department = document.getElementById('task-department').value;
             const deadline = document.getElementById('task-deadline').value;
             const description = document.getElementById('task-description').value.trim();
-
             if (!title || !deadline) {
                 tg.showAlert('Заполните название и срок');
                 return;
             }
-
             if (userRole === 'workshop_head') {
                 department = userWorkshop;
             }
-
             const newTask = {
-                id: Date.now(),
                 title,
                 department,
                 deadline,
                 description,
                 status: 'planned',
-                createdBy: userFIO
+                created_by: userFIO
             };
-
-            tasks.push(newTask);
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-
-            tg.showAlert('Задача создана');
-            startWorkshopTasks();
+            try {
+                await apiFetch('/tasks', 'POST', newTask);
+                tg.showAlert('Задача создана');
+                startWorkshopTasks();
+            } catch (e) {
+                tg.showAlert('Ошибка сохранения');
+            }
         }
-
-        function completeTask(id) {
-            const task = tasks.find(t => t.id === id);
-            if (task) task.status = 'confirmed';
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            loadTasks();
+        async function completeTask(id) {
+            try {
+                await apiFetch(`/tasks/${id}`, 'PUT', { status: 'confirmed' });
+                loadTasks();
+            } catch (e) {
+                tg.showAlert('Ошибка');
+            }
         }
-
-        function cancelTask(id) {
-            const task = tasks.find(t => t.id === id);
-            if (task) task.status = 'cancelled';
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            loadTasks();
+        async function cancelTask(id) {
+            try {
+                await apiFetch(`/tasks/${id}`, 'PUT', { status: 'cancelled' });
+                loadTasks();
+            } catch (e) {
+                tg.showAlert('Ошибка');
+            }
         }
 
         // ===== РЕПЕРТУАР =====
@@ -714,8 +695,8 @@
             renderRepertoireTable();
             tg.BackButton.show().onClick(backToMenu);
         }
-
-        function renderRepertoireTable() {
+        async function renderRepertoireTable() {
+            await loadEvents();
             const container = document.getElementById('repertoire-table-container');
             const now = new Date();
             const performances = events.filter(e => e.type === 'performance' && new Date(e.datetime).getMonth() === now.getMonth());
@@ -723,7 +704,6 @@
                 container.innerHTML = '<p>Спектаклей в репертуаре нет</p>';
                 return;
             }
-
             let table = '<table class="repertoire-table"><thead><tr><th>Дата</th><th>Спектакль</th><th>Статус</th></tr></thead><tbody>';
             performances.forEach(p => {
                 table += `<tr><td>${formatDate(p.datetime)}</td><td>${p.title}</td><td><span class="status ${p.status || 'planned'}">${getStatusText(p.status || 'planned')}</span></td></tr>`;
@@ -731,8 +711,8 @@
             table += '</tbody></table>';
             container.innerHTML = table;
         }
-
-        function exportRepertoire() {
+        async function exportRepertoire() {
+            await loadEvents();
             const wb = XLSX.utils.book_new();
             const now = new Date();
             const data = events.filter(e => e.type === 'performance' && new Date(e.datetime).getMonth() === now.getMonth()).map(e => ({
@@ -753,15 +733,15 @@
             renderStats();
             tg.BackButton.show().onClick(backToMenu);
         }
-
-        function renderStats() {
+        async function renderStats() {
+            await loadEvents();
+            await loadTasksData();
             const content = document.getElementById('stats-content');
             let totalEvents = events.length;
             let rehearsals = events.filter(e => e.type === 'rehearsal').length;
             let performances = events.filter(e => e.type === 'performance').length;
             let myEvents = events.filter(e => e.participants.some(p => p.id === user.id)).length;
             let totalTasks = tasks.length;
-
             if (['actor', 'workshop_worker'].includes(userRole)) {
                 totalEvents = myEvents;
                 rehearsals = events.filter(e => e.type === 'rehearsal' && e.participants.some(p => p.id === user.id)).length;
@@ -770,7 +750,6 @@
             } else if (userRole === 'workshop_head') {
                 totalTasks = tasks.filter(t => t.department === userWorkshop).length;
             }
-
             content.innerHTML = `
                 <p>Всего событий: ${totalEvents}</p>
                 <p>Репетиций: ${rehearsals}</p>
@@ -788,8 +767,8 @@
             loadPendingList();
             tg.BackButton.show().onClick(backToAdminPanel);
         }
-
-        function loadPendingList() {
+        async function loadPendingList() {
+            await loadPendingUsers();
             const list = document.getElementById('pending-list');
             list.innerHTML = '';
             let filteredPending = pendingUsers;
@@ -818,7 +797,6 @@
                     <button onclick="rejectUser(${p.tg_id})">Отклонить</button>
                 `;
                 list.appendChild(div);
-
                 document.getElementById(`assign-role-${p.tg_id}`).addEventListener('change', function() {
                     const wsSelect = document.getElementById(`assign-workshop-${p.tg_id}`);
                     if (this.value.includes('workshop')) wsSelect.classList.remove('hidden');
@@ -829,56 +807,33 @@
                 list.innerHTML = '<p>Нет неподтверждённых заявок</p>';
             }
         }
-
-        function assignRole(tg_id) {
+        async function assignRole(tg_id) {
             const roleSelect = document.getElementById(`assign-role-${tg_id}`);
             const role = roleSelect.value;
             const workshopSelect = document.getElementById(`assign-workshop-${tg_id}`);
             const workshop = role.includes('workshop') ? workshopSelect.value : null;
-
-            // В реале: tg.sendData({ action: 'set_role', tg_id, role, workshop })
-            // Симуляция: добавляем в participants, удаляем из pending
-            const pendingIndex = pendingUsers.findIndex(p => p.tg_id === tg_id);
-            if (pendingIndex !== -1) {
-                const userData = pendingUsers.splice(pendingIndex, 1)[0];
-                participants.push({
-                    id: tg_id,
-                    fio: userData.fio,
-                    role: role,
-                    workshop: workshop
-                });
-                localStorage.setItem('participants', JSON.stringify(participants));
-                localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
+            try {
+                await apiFetch('/assign_role', 'POST', { tg_id, role, workshop });
+                if (tg_id === user.id) {
+                    await loadUser();
+                    hideConfirmShowMenu();
+                    updateMenuByRole();
+                }
+                tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
+                loadPendingList();
+            } catch (e) {
+                tg.showAlert('Ошибка');
             }
-
-            // Если это текущий пользователь
-            if (tg_id === user.id) {
-                localStorage.setItem('user_role', role);
-                localStorage.setItem('user_workshop', workshop);
-                localStorage.setItem('confirmed', 'true');
-                isConfirmed = true;
-                userRole = role;
-                userWorkshop = workshop;
-                hideConfirmShowMenu();
-                updateMenuByRole();
-            }
-
-            tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
-            loadPendingList();
         }
-
-        function rejectUser(tg_id) {
-            // В реале: tg.sendData({ action: 'reject_user', tg_id })
-            // Симуляция
-            const pendingIndex = pendingUsers.findIndex(p => p.tg_id === tg_id);
-            if (pendingIndex !== -1) {
-                pendingUsers.splice(pendingIndex, 1);
-                localStorage.setItem('pending_users', JSON.stringify(pendingUsers));
+        async function rejectUser(tg_id) {
+            try {
+                await apiFetch('/reject_user', 'POST', { tg_id });
+                tg.showAlert('Заявка отклонена');
+                loadPendingList();
+            } catch (e) {
+                tg.showAlert('Ошибка');
             }
-            tg.showAlert('Заявка отклонена');
-            loadPendingList();
         }
-
         function manageUsers() {
             if (userRole !== 'troupe_head') {
                 tg.showAlert('Доступ только для заведующего труппой');
@@ -889,25 +844,23 @@
             loadUsersList();
             tg.BackButton.show().onClick(backToAdminPanel);
         }
-
-        function loadUsersList() {
+        async function loadUsersList() {
+            await loadParticipants();
             const list = document.getElementById('users-list');
             list.innerHTML = '';
-            // В реале: запрос к бэкенду
-            // Симуляция
             participants.forEach(p => {
                 const div = document.createElement('div');
                 div.className = 'participant';
                 div.innerHTML = `
                     <strong>${p.fio}</strong> (${getRoleText(p.role)}${p.workshop ? ' (' + getDepartmentText(p.workshop) + ')' : ''})<br>
-                    <select id="change-role-${p.id}">
+                    <select id="change-role-${p.tg_id}">
                         <option value="${p.role}" selected>Текущая: ${getRoleText(p.role)}</option>
                         <option value="actor">Актер</option>
                         <option value="workshop_worker">Работник цеха</option>
                         <option value="workshop_head">Заведующий цехом</option>
                         <option value="troupe_head">Заведующий труппой</option>
                     </select>
-                    <select id="change-workshop-${p.id}" ${!p.role.includes('workshop') ? 'class="hidden"' : ''}>
+                    <select id="change-workshop-${p.tg_id}" ${!p.role.includes('workshop') ? 'class="hidden"' : ''}>
                         <option value="${p.workshop || ''}" selected>${p.workshop ? getDepartmentText(p.workshop) : 'Не назначен'}</option>
                         <option value="costume">Костюмерный</option>
                         <option value="props">Бутафорский</option>
@@ -915,13 +868,12 @@
                         <option value="sound">Звуковой</option>
                         <option value="stage">Монтировочный</option>
                     </select>
-                    <button onclick="changeRole(${p.id})">Изменить</button>
-                    <button onclick="removeUser(${p.id})">Удалить</button>
+                    <button onclick="changeRole(${p.tg_id})">Изменить</button>
+                    <button onclick="removeUser(${p.tg_id})">Удалить</button>
                 `;
                 list.appendChild(div);
-
-                document.getElementById(`change-role-${p.id}`).addEventListener('change', function() {
-                    const wsSelect = document.getElementById(`change-workshop-${p.id}`);
+                document.getElementById(`change-role-${p.tg_id}`).addEventListener('change', function() {
+                    const wsSelect = document.getElementById(`change-workshop-${p.tg_id}`);
                     if (this.value.includes('workshop')) wsSelect.classList.remove('hidden');
                     else wsSelect.classList.add('hidden');
                 });
@@ -930,46 +882,33 @@
                 list.innerHTML = '<p>Нет пользователей</p>';
             }
         }
-
-        function changeRole(id) {
-            const roleSelect = document.getElementById(`change-role-${id}`);
+        async function changeRole(tg_id) {
+            const roleSelect = document.getElementById(`change-role-${tg_id}`);
             const role = roleSelect.value;
-            const workshopSelect = document.getElementById(`change-workshop-${id}`);
+            const workshopSelect = document.getElementById(`change-workshop-${tg_id}`);
             const workshop = role.includes('workshop') ? workshopSelect.value : null;
-
-            // В реале: tg.sendData
-            // Симуляция
-            const userIndex = participants.findIndex(p => p.id === id);
-            if (userIndex !== -1) {
-                participants[userIndex].role = role;
-                participants[userIndex].workshop = workshop;
-                localStorage.setItem('participants', JSON.stringify(participants));
+            try {
+                await apiFetch('/change_role', 'POST', { tg_id, role, workshop });
+                if (tg_id === user.id) {
+                    userRole = role;
+                    userWorkshop = workshop;
+                    updateMenuByRole();
+                }
+                tg.showAlert('Роль изменена');
+                loadUsersList();
+            } catch (e) {
+                tg.showAlert('Ошибка');
             }
-
-            if (id === user.id) {
-                userRole = role;
-                userWorkshop = workshop;
-                localStorage.setItem('user_role', role);
-                localStorage.setItem('user_workshop', workshop);
-                updateMenuByRole();
-            }
-
-            tg.showAlert('Роль изменена');
-            loadUsersList();
         }
-
-        function removeUser(id) {
-            // В реале: tg.sendData
-            // Симуляция
-            const userIndex = participants.findIndex(p => p.id === id);
-            if (userIndex !== -1) {
-                participants.splice(userIndex, 1);
-                localStorage.setItem('participants', JSON.stringify(participants));
+        async function removeUser(tg_id) {
+            try {
+                await apiFetch('/remove_user', 'POST', { tg_id });
+                tg.showAlert('Пользователь удалён');
+                loadUsersList();
+            } catch (e) {
+                tg.showAlert('Ошибка');
             }
-            tg.showAlert('Пользователь удалён');
-            loadUsersList();
         }
-
         function manageEvents() {
             if (userRole !== 'troupe_head') return;
             hideAllSections();
@@ -977,8 +916,8 @@
             loadManageEvents();
             tg.BackButton.show().onClick(backToAdminPanel);
         }
-
-        function loadManageEvents() {
+        async function loadManageEvents() {
+            await loadEvents();
             const list = document.getElementById('events-manage-list');
             list.innerHTML = '';
             events.forEach(e => {
@@ -998,22 +937,19 @@
                 list.innerHTML = '<p>Событий нет</p>';
             }
         }
-
         function editEvent(id) {
-            // Здесь можно добавить форму редактирования, для симуляции просто алерт
-            tg.showAlert(`Редактирование события ${id} (реализация формы опущена в симуляции)`);
+            // Для редактирования можно добавить форму, пока алерт
+            tg.showAlert(`Редактирование события ${id} (добавьте форму для реального редактирования)`);
         }
-
-        function deleteEvent(id) {
-            const index = events.findIndex(e => e.id === id);
-            if (index !== -1) {
-                events.splice(index, 1);
-                localStorage.setItem('events', JSON.stringify(events));
+        async function deleteEvent(id) {
+            try {
+                await apiFetch(`/events/${id}`, 'DELETE');
+                tg.showAlert('Событие удалено');
+                loadManageEvents();
+            } catch (e) {
+                tg.showAlert('Ошибка');
             }
-            tg.showAlert('Событие удалено');
-            loadManageEvents();
         }
-
         function manageTasks() {
             if (userRole !== 'troupe_head') return;
             hideAllSections();
@@ -1021,8 +957,8 @@
             loadManageTasks();
             tg.BackButton.show().onClick(backToAdminPanel);
         }
-
-        function loadManageTasks() {
+        async function loadManageTasks() {
+            await loadTasksData();
             const list = document.getElementById('tasks-manage-list');
             list.innerHTML = '';
             tasks.forEach(t => {
@@ -1042,19 +978,47 @@
                 list.innerHTML = '<p>Задач нет</p>';
             }
         }
-
         function editTask(id) {
-            tg.showAlert(`Редактирование задачи ${id} (реализация формы опущена в симуляции)`);
+            tg.showAlert(`Редактирование задачи ${id} (добавьте форму для реального редактирования)`);
+        }
+        async function deleteTask(id) {
+            try {
+                await apiFetch(`/tasks/${id}`, 'DELETE');
+                tg.showAlert('Задача удалена');
+                loadManageTasks();
+            } catch (e) {
+                tg.showAlert('Ошибка');
+            }
         }
 
-        function deleteTask(id) {
-            const index = tasks.findIndex(t => t.id === id);
-            if (index !== -1) {
-                tasks.splice(index, 1);
-                localStorage.setItem('tasks', JSON.stringify(tasks));
+        // Загрузка данных
+        async function loadEvents() {
+            try {
+                events = await apiFetch('/events');
+            } catch (e) {
+                console.error(e);
             }
-            tg.showAlert('Задача удалена');
-            loadManageTasks();
+        }
+        async function loadTasksData() {
+            try {
+                tasks = await apiFetch('/tasks');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        async function loadParticipants() {
+            try {
+                participants = await apiFetch('/users');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        async function loadPendingUsers() {
+            try {
+                pendingUsers = await apiFetch('/pending_users');
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         // Вспомогательные функции
@@ -1062,11 +1026,9 @@
             const date = new Date(dateStr);
             return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
-
         function isSameDay(d1, d2) {
             return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
         }
-
         function getStatusText(status) {
             switch (status) {
                 case 'confirmed': return 'Подтверждено';
@@ -1074,7 +1036,6 @@
                 default: return 'Запланировано';
             }
         }
-
         function getTypeText(type) {
             switch (type) {
                 case 'rehearsal': return 'Репетиция';
@@ -1084,7 +1045,6 @@
                 default: return type;
             }
         }
-
         function getRoleText(role) {
             switch (role) {
                 case 'troupe_head': return 'Заведующий труппой';
@@ -1094,7 +1054,6 @@
                 default: return 'Не назначено';
             }
         }
-
         function getDepartmentText(dept) {
             switch (dept) {
                 case 'costume': return 'Костюмерный';
@@ -1106,21 +1065,8 @@
             }
         }
 
-        function loadParticipants() {
-            // Заглушка
-            if (participants.length === 0) {
-                participants = [
-                    { id: 123456, fio: 'Админ Тестовый', role: 'troupe_head' },
-                    { id: 999999, fio: 'Иванов Иван Иванович', role: 'actor' },
-                    { id: 999998, fio: 'Петрова Анна Сергеевна', role: 'workshop_head', workshop: 'costume' }
-                ];
-                localStorage.setItem('participants', JSON.stringify(participants));
-            }
-        }
-
         // Запуск
         init();
     </script>
 </body>
 </html>
-
