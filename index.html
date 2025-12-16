@@ -417,7 +417,8 @@
                 if (response.ok) {
                     tg.showAlert('Заявка отправлена. Ждите подтверждения.');
                 } else {
-                    tg.showAlert('Ошибка отправки');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка отправки: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка отправки: ' + e.message);
@@ -607,7 +608,7 @@
                 const response = await apiFetch(endpoint, method, eventData);
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.error || 'Неизвестная ошибка');
+                    throw new Error(JSON.stringify(errData.error || errData || 'Неизвестная ошибка'));
                 }
                 tg.showAlert(currentEditEventId ? 'Событие обновлено' : 'Событие создано');
                 currentEditEventId ? manageEvents() : backToMenu();
@@ -703,7 +704,7 @@
                 const response = await apiFetch('/tasks', 'POST', newTask);
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.error || 'Неизвестная ошибка');
+                    throw new Error(JSON.stringify(errData.error || errData || 'Неизвестная ошибка'));
                 }
                 tg.showAlert('Задача создана');
                 startWorkshopTasks();
@@ -861,7 +862,8 @@
                     tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
                     loadPendingList();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
@@ -874,7 +876,8 @@
                     tg.showAlert('Заявка отклонена');
                     loadPendingList();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
@@ -944,7 +947,8 @@
                     tg.showAlert('Роль изменена');
                     loadUsersList();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
@@ -957,7 +961,8 @@
                     tg.showAlert('Пользователь удалён');
                     loadUsersList();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
@@ -1015,7 +1020,8 @@
                     tg.showAlert('Событие удалено');
                     loadManageEvents();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
@@ -1060,7 +1066,8 @@
                     tg.showAlert('Задача удалена');
                     loadManageTasks();
                 } else {
-                    tg.showAlert('Ошибка');
+                    const errData = await response.json();
+                    tg.showAlert('Ошибка: ' + (errData.error || 'Неизвестная ошибка'));
                 }
             } catch (e) {
                 tg.showAlert('Ошибка: ' + e.message);
