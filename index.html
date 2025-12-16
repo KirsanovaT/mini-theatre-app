@@ -257,6 +257,7 @@
             <h2>Создать событие</h2>
             <input type="text" id="event-title" placeholder="Название события">
             <input type="text" id="event-datetime" placeholder="Дата и время">
+            <input type="text" id="event-end-datetime" placeholder="Дата и время окончания">
             <select id="event-type">
                 <option value="rehearsal">Репетиция</option>
                 <option value="performance">Спектакль</option>
@@ -320,9 +321,8 @@
         tg.ready();
         tg.expand();
         const user = tg.initDataUnsafe.user || { id: 123456, username: 'testuser' };
-        const initData = tg.initData;  // Для аутентификации
-        const API_URL = 'http://localhost:3000/api';  // Замени на URL backend
-
+        const initData = tg.initData; // Для аутентификации
+        const API_URL = 'http://localhost:3000/api'; // Замени на URL backend
         let userFIO = '';
         let userRole = 'pending';
         let userWorkshop = null;
@@ -331,7 +331,7 @@
         let tasks = [];
         let participants = [];
         let pendingUsers = [];
-
+        let currentEditEventId = null;
         // Хелпер для fetch с аутентификацией
         async function apiFetch(endpoint, method = 'GET', body = null) {
             const headers = { 'Authorization': initData };
@@ -344,7 +344,6 @@
             if (!response.ok) throw new Error('API error');
             return response.json();
         }
-
         // Инициализация
         async function init() {
             document.getElementById('role-request').addEventListener('change', function() {
@@ -364,7 +363,6 @@
             }
             await loadParticipants();
         }
-
         async function loadUser() {
             try {
                 const userData = await apiFetch('/user');
@@ -378,13 +376,11 @@
                 console.error(e);
             }
         }
-
         function hideConfirmShowMenu() {
             document.getElementById('confirm-section').classList.add('hidden');
             document.getElementById('main-menu').classList.remove('hidden');
             document.getElementById('user-info').textContent = `Добро пожаловать, ${userFIO}! Роль: ${getRoleText(userRole)}${userWorkshop ? ' (' + getDepartmentText(userWorkshop) + ')' : ''}`;
         }
-
         function updateMenuByRole() {
             if (['troupe_head', 'workshop_head'].includes(userRole)) {
                 document.getElementById('admin-panel').classList.remove('hidden');
@@ -402,7 +398,6 @@
                 document.querySelector('button[onclick="showSchedule()"]').textContent = 'Расписание театра';
             }
         }
-
         // Подтверждение с ролью
         async function sendForConfirmation() {
             const fio = document.getElementById('fio-input').value.trim();
@@ -424,7 +419,6 @@
                 tg.showAlert('Ошибка отправки');
             }
         }
-
         // Проверка подтверждения
         function requireConfirmation() {
             if (!isConfirmed) {
@@ -433,7 +427,6 @@
             }
             return true;
         }
-
         // Навигация
         function backToMenu() {
             hideAllSections();
@@ -456,7 +449,6 @@
             document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users, #manage-events, #manage-tasks')
                 .forEach(el => el.classList.add('hidden'));
         }
-
         // ===== РАСПИСАНИЕ =====
         function showSchedule() {
             if (!requireConfirmation()) return;
@@ -508,14 +500,14 @@
                 div.className = 'event';
                 div.innerHTML = `
                     <strong>${e.title}</strong><br>
-                    ${formatDate(e.datetime)}<br>
+                    Начало: ${formatDate(e.datetime)}<br>
+                    Конец: ${formatDate(e.end_datetime)}<br>
                     Тип: ${getTypeText(e.type)}<br>
                     <span class="status ${e.status || 'planned'}">${getStatusText(e.status || 'planned')}</span>
                 `;
                 list.appendChild(div);
             });
         }
-
         // ===== СОЗДАНИЕ СОБЫТИЯ =====
         function startCreateEvent() {
             if (!requireConfirmation() || !['actor', 'troupe_head'].includes(userRole)) {
@@ -524,23 +516,40 @@
             }
             hideAllSections();
             document.getElementById('create-event').classList.remove('hidden');
+            document.getElementById('create-event').querySelector('h2').textContent = 'Создать событие';
+            currentEditEventId = null;
+            clearEventForm();
+            renderParticipantsList();
             flatpickr("#event-datetime", {
                 enableTime: true,
                 dateFormat: "d.m.Y H:i",
                 locale: "ru",
                 minDate: "today"
             });
-            renderParticipantsList();
+            flatpickr("#event-end-datetime", {
+                enableTime: true,
+                dateFormat: "d.m.Y H:i",
+                locale: "ru",
+                minDate: "today"
+            });
             tg.BackButton.show().onClick(backToMenu);
         }
-        function renderParticipantsList() {
+        function clearEventForm() {
+            document.getElementById('event-title').value = '';
+            document.getElementById('event-datetime').value = '';
+            document.getElementById('event-end-datetime').value = '';
+            document.getElementById('event-type').value = 'rehearsal';
+            document.getElementById('event-description').value = '';
+            document.querySelectorAll('#participants-list input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+        function renderParticipantsList(eventParticipants = []) {
             const container = document.getElementById('participants-list');
             container.innerHTML = '<h3>Участники:</h3>';
             participants.forEach(p => {
                 const div = document.createElement('div');
                 div.className = 'participant';
                 div.innerHTML = `
-                    <input type="checkbox" id="part-${p.tg_id}" value="${p.tg_id}">
+                    <input type="checkbox" id="part-${p.tg_id}" value="${p.tg_id}" ${eventParticipants.some(ep => ep.id === p.tg_id) ? 'checked' : ''}>
                     <label for="part-${p.tg_id}">${p.fio} (${getRoleText(p.role)})</label>
                 `;
                 container.appendChild(div);
@@ -549,10 +558,17 @@
         async function saveEvent() {
             const title = document.getElementById('event-title').value.trim();
             const datetime = document.getElementById('event-datetime').value;
+            const end_datetime = document.getElementById('event-end-datetime').value;
             const type = document.getElementById('event-type').value;
             const description = document.getElementById('event-description').value.trim();
-            if (!title || !datetime) {
-                tg.showAlert('Заполните название и дату/время');
+            if (!title || !datetime || !end_datetime) {
+                tg.showAlert('Заполните название, дату/время начала и окончания');
+                return;
+            }
+            const startDate = parseDate(datetime);
+            const endDate = parseDate(end_datetime);
+            if (startDate >= endDate) {
+                tg.showAlert('Время окончания должно быть после начала');
                 return;
             }
             const selectedParticipants = Array.from(document.querySelectorAll('#participants-list input:checked'))
@@ -560,9 +576,10 @@
                     id: parseInt(cb.value),
                     fio: cb.nextElementSibling.textContent.split(' (')[0]
                 }));
-            const newEvent = {
+            const eventData = {
                 title,
-                datetime,
+                datetime: formatToISO(datetime),
+                end_datetime: formatToISO(end_datetime),
                 type,
                 description,
                 participants: selectedParticipants,
@@ -570,14 +587,19 @@
                 created_by: user.id
             };
             try {
-                await apiFetch('/events', 'POST', newEvent);
-                tg.showAlert('Событие создано');
-                backToMenu();
+                if (currentEditEventId) {
+                    await apiFetch(`/events/${currentEditEventId}`, 'PUT', eventData);
+                    tg.showAlert('Событие обновлено');
+                    manageEvents();
+                } else {
+                    await apiFetch('/events', 'POST', eventData);
+                    tg.showAlert('Событие создано');
+                    backToMenu();
+                }
             } catch (e) {
                 tg.showAlert('Ошибка сохранения');
             }
         }
-
         // ===== ЗАДАЧИ ЦЕХАМ =====
         function startWorkshopTasks() {
             if (!requireConfirmation() || !['workshop_head', 'workshop_worker', 'troupe_head'].includes(userRole)) return;
@@ -686,7 +708,6 @@
                 tg.showAlert('Ошибка');
             }
         }
-
         // ===== РЕПЕРТУАР =====
         function showRepertoire() {
             if (!requireConfirmation()) return;
@@ -724,7 +745,6 @@
             XLSX.utils.book_append_sheet(wb, ws, "Репертуар");
             XLSX.writeFile(wb, "repertoire.xlsx");
         }
-
         // ===== СТАТИСТИКА =====
         function showStats() {
             if (!requireConfirmation()) return;
@@ -758,7 +778,6 @@
                 <p>Задач цехам: ${totalTasks}</p>
             `;
         }
-
         // ===== АДМИН-ПАНЕЛЬ =====
         function showPendingConfirmations() {
             if (!['troupe_head', 'workshop_head'].includes(userRole)) return;
@@ -925,7 +944,8 @@
                 div.className = 'event';
                 div.innerHTML = `
                     <strong>${e.title}</strong><br>
-                    ${formatDate(e.datetime)}<br>
+                    Начало: ${formatDate(e.datetime)}<br>
+                    Конец: ${formatDate(e.end_datetime)}<br>
                     <div class="task-actions">
                         <button onclick="editEvent(${e.id})">Редактировать</button>
                         <button onclick="deleteEvent(${e.id})">Удалить</button>
@@ -938,8 +958,34 @@
             }
         }
         function editEvent(id) {
-            // Для редактирования можно добавить форму, пока алерт
-            tg.showAlert(`Редактирование события ${id} (добавьте форму для реального редактирования)`);
+            document.getElementById('manage-events').classList.add('hidden');
+            document.getElementById('create-event').classList.remove('hidden');
+            document.getElementById('create-event').querySelector('h2').textContent = 'Редактировать событие';
+            currentEditEventId = id;
+            const event = events.find(e => e.id === id);
+            if (!event) return;
+            document.getElementById('event-title').value = event.title;
+            document.getElementById('event-datetime').value = formatForInput(event.datetime);
+            document.getElementById('event-end-datetime').value = formatForInput(event.end_datetime);
+            document.getElementById('event-type').value = event.type;
+            document.getElementById('event-description').value = event.description || '';
+            renderParticipantsList(event.participants);
+            flatpickr("#event-datetime", {
+                enableTime: true,
+                dateFormat: "d.m.Y H:i",
+                locale: "ru",
+                minDate: "today"
+            });
+            flatpickr("#event-end-datetime", {
+                enableTime: true,
+                dateFormat: "d.m.Y H:i",
+                locale: "ru",
+                minDate: "today"
+            });
+            tg.BackButton.show().onClick(() => {
+                document.getElementById('create-event').classList.add('hidden');
+                document.getElementById('manage-events').classList.remove('hidden');
+            });
         }
         async function deleteEvent(id) {
             try {
@@ -990,7 +1036,6 @@
                 tg.showAlert('Ошибка');
             }
         }
-
         // Загрузка данных
         async function loadEvents() {
             try {
@@ -1020,11 +1065,31 @@
                 console.error(e);
             }
         }
-
         // Вспомогательные функции
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        function formatForInput(dateStr) {
+            const d = new Date(dateStr);
+            const day = d.getDate().toString().padStart(2, '0');
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+        function parseDate(dateStr) {
+            const [datePart, timePart] = dateStr.split(' ');
+            const [day, month, year] = datePart.split('.');
+            const [hours, minutes] = timePart.split(':');
+            return new Date(year, month - 1, day, hours, minutes);
+        }
+        function formatToISO(dateStr) {
+            const [datePart, timePart] = dateStr.split(' ');
+            const [day, month, year] = datePart.split('.');
+            const [hours, minutes] = timePart.split(':');
+            return new Date(year, month - 1, day, hours, minutes).toISOString();
         }
         function isSameDay(d1, d2) {
             return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
@@ -1064,7 +1129,6 @@
                 default: return dept;
             }
         }
-
         // Запуск
         init();
     </script>
