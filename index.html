@@ -321,6 +321,7 @@
         tg.ready();
         tg.expand();
         const user = tg.initDataUnsafe.user || { id: 123456, username: 'testuser' };
+        const initData = tg.initData; // Для аутентификации
         const API_URL = 'http://localhost:3000/api'; // Замени на URL backend
         let userFIO = '';
         let userRole = 'pending';
@@ -331,9 +332,9 @@
         let participants = [];
         let pendingUsers = [];
         let currentEditEventId = null;
-        // Хелпер для fetch без аутентификации
+        // Хелпер для fetch с аутентификацией
         async function apiFetch(endpoint, method = 'GET', body = null) {
-            const headers = {};
+            const headers = { 'Authorization': initData };
             if (body) headers['Content-Type'] = 'application/json';
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method,
@@ -363,7 +364,7 @@
         }
         async function loadUser() {
             try {
-                const response = await apiFetch('/user?tg_id=' + user.id);
+                const response = await apiFetch('/user');
                 const userData = await response.json();
                 if (userData) {
                     userFIO = userData.fio;
@@ -408,7 +409,6 @@
             }
             try {
                 const response = await apiFetch('/request_confirmation', 'POST', {
-                    tg_id: user.id,
                     fio,
                     requested_role: requestedRole,
                     requested_workshop: requestedWorkshop,
@@ -608,7 +608,7 @@
                 const response = await apiFetch(endpoint, method, eventData);
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(JSON.stringify(errData.error || errData || 'Неизвестная ошибка'));
+                    throw new Error(JSON.stringify(errData));
                 }
                 tg.showAlert(currentEditEventId ? 'Событие обновлено' : 'Событие создано');
                 currentEditEventId ? manageEvents() : backToMenu();
@@ -704,7 +704,7 @@
                 const response = await apiFetch('/tasks', 'POST', newTask);
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(JSON.stringify(errData.error || errData || 'Неизвестная ошибка'));
+                    throw new Error(JSON.stringify(errData));
                 }
                 tg.showAlert('Задача создана');
                 startWorkshopTasks();
