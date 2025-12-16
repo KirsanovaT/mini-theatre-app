@@ -252,11 +252,11 @@
                 <button onclick="backToMenu()"><i class="fas fa-arrow-left"></i> Назад</button>
             </div>
         </div>
-        <!-- Создание события -->
+        <!-- Создание/редактирование события -->
         <div id="create-event" class="hidden">
-            <h2>Создать событие</h2>
+            <h2 id="event-form-title">Создать событие</h2>
             <input type="text" id="event-title" placeholder="Название события">
-            <input type="text" id="event-datetime" placeholder="Дата и время">
+            <input type="text" id="event-datetime" placeholder="Дата и время начала">
             <input type="text" id="event-end-datetime" placeholder="Дата и время окончания">
             <select id="event-type">
                 <option value="rehearsal">Репетиция</option>
@@ -268,7 +268,7 @@
             <div id="participants-list"></div>
             <div class="nav-buttons">
                 <button onclick="saveEvent()"><i class="fas fa-save"></i> Сохранить</button>
-                <button onclick="backToMenu()"><i class="fas fa-times"></i> Отмена</button>
+                <button onclick="cancelEventEdit()"><i class="fas fa-times"></i> Отмена</button>
             </div>
         </div>
         <!-- Задачи цехам -->
@@ -341,8 +341,7 @@
                 headers,
                 body: body ? JSON.stringify(body) : null
             });
-            if (!response.ok) throw new Error('API error');
-            return response.json();
+            return response;
         }
         // Инициализация
         async function init() {
@@ -365,7 +364,8 @@
         }
         async function loadUser() {
             try {
-                const userData = await apiFetch('/user');
+                const response = await apiFetch('/user');
+                const userData = await response.json();
                 if (userData) {
                     userFIO = userData.fio;
                     userRole = userData.role;
@@ -408,15 +408,19 @@
                 return;
             }
             try {
-                await apiFetch('/request_confirmation', 'POST', {
+                const response = await apiFetch('/request_confirmation', 'POST', {
                     fio,
                     requested_role: requestedRole,
                     requested_workshop: requestedWorkshop,
                     username: user.username || ''
                 });
-                tg.showAlert('Заявка отправлена. Ждите подтверждения.');
+                if (response.ok) {
+                    tg.showAlert('Заявка отправлена. Ждите подтверждения.');
+                } else {
+                    tg.showAlert('Ошибка отправки');
+                }
             } catch (e) {
-                tg.showAlert('Ошибка отправки');
+                tg.showAlert('Ошибка отправки: ' + e.message);
             }
         }
         // Проверка подтверждения
@@ -448,6 +452,14 @@
         function hideAllSections() {
             document.querySelectorAll('#main-menu, #admin-panel, #schedule, #create-event, #workshop-tasks, #create-task, #repertoire, #stats, #pending-confirmations, #manage-users, #manage-events, #manage-tasks')
                 .forEach(el => el.classList.add('hidden'));
+        }
+        function cancelEventEdit() {
+            if (currentEditEventId) {
+                document.getElementById('create-event').classList.add('hidden');
+                document.getElementById('manage-events').classList.remove('hidden');
+            } else {
+                backToMenu();
+            }
         }
         // ===== РАСПИСАНИЕ =====
         function showSchedule() {
@@ -508,7 +520,7 @@
                 list.appendChild(div);
             });
         }
-        // ===== СОЗДАНИЕ СОБЫТИЯ =====
+        // ===== СОЗДАНИЕ/РЕДАКТИРОВАНИЕ СОБЫТИЯ =====
         function startCreateEvent() {
             if (!requireConfirmation() || !['actor', 'troupe_head'].includes(userRole)) {
                 tg.showAlert('У вас нет прав на создание событий');
@@ -516,23 +528,26 @@
             }
             hideAllSections();
             document.getElementById('create-event').classList.remove('hidden');
-            document.getElementById('create-event').querySelector('h2').textContent = 'Создать событие';
+            document.getElementById('event-form-title').textContent = 'Создать событие';
             currentEditEventId = null;
             clearEventForm();
             renderParticipantsList();
+            initFlatpickr(true);
+            tg.BackButton.show().onClick(cancelEventEdit);
+        }
+        function initFlatpickr(isNew = true) {
             flatpickr("#event-datetime", {
                 enableTime: true,
                 dateFormat: "d.m.Y H:i",
                 locale: "ru",
-                minDate: "today"
+                minDate: isNew ? "today" : null
             });
             flatpickr("#event-end-datetime", {
                 enableTime: true,
                 dateFormat: "d.m.Y H:i",
                 locale: "ru",
-                minDate: "today"
+                minDate: isNew ? "today" : null
             });
-            tg.BackButton.show().onClick(backToMenu);
         }
         function clearEventForm() {
             document.getElementById('event-title').value = '';
@@ -587,20 +602,21 @@
                 created_by: user.id
             };
             try {
-                if (currentEditEventId) {
-                    await apiFetch(`/events/${currentEditEventId}`, 'PUT', eventData);
-                    tg.showAlert('Событие обновлено');
-                    manageEvents();
-                } else {
-                    await apiFetch('/events', 'POST', eventData);
-                    tg.showAlert('Событие создано');
-                    backToMenu();
+                const endpoint = currentEditEventId ? `/events/${currentEditEventId}` : '/events';
+                const method = currentEditEventId ? 'PUT' : 'POST';
+                const response = await apiFetch(endpoint, method, eventData);
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Неизвестная ошибка');
                 }
+                tg.showAlert(currentEditEventId ? 'Событие обновлено' : 'Событие создано');
+                currentEditEventId ? manageEvents() : backToMenu();
             } catch (e) {
-                tg.showAlert('Ошибка сохранения');
+                tg.showAlert('Ошибка сохранения: ' + e.message);
             }
         }
         // ===== ЗАДАЧИ ЦЕХАМ =====
+        // (без изменений, так как ошибка, вероятно, в событиях)
         function startWorkshopTasks() {
             if (!requireConfirmation() || !['workshop_head', 'workshop_worker', 'troupe_head'].includes(userRole)) return;
             hideAllSections();
@@ -685,27 +701,31 @@
                 created_by: userFIO
             };
             try {
-                await apiFetch('/tasks', 'POST', newTask);
+                const response = await apiFetch('/tasks', 'POST', newTask);
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Неизвестная ошибка');
+                }
                 tg.showAlert('Задача создана');
                 startWorkshopTasks();
             } catch (e) {
-                tg.showAlert('Ошибка сохранения');
+                tg.showAlert('Ошибка сохранения: ' + e.message);
             }
         }
         async function completeTask(id) {
             try {
-                await apiFetch(`/tasks/${id}`, 'PUT', { status: 'confirmed' });
-                loadTasks();
+                const response = await apiFetch(`/tasks/${id}`, 'PUT', { status: 'confirmed' });
+                if (response.ok) loadTasks();
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         async function cancelTask(id) {
             try {
-                await apiFetch(`/tasks/${id}`, 'PUT', { status: 'cancelled' });
-                loadTasks();
+                const response = await apiFetch(`/tasks/${id}`, 'PUT', { status: 'cancelled' });
+                if (response.ok) loadTasks();
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         // ===== РЕПЕРТУАР =====
@@ -829,28 +849,36 @@
         async function assignRole(tg_id) {
             const roleSelect = document.getElementById(`assign-role-${tg_id}`);
             const role = roleSelect.value;
-            const workshopSelect = document.getElementById(`assign-workshop-${tg_id}`);
+            const workshopSelect = document.getElementById(`assign-workshop-${p.tg_id}`);
             const workshop = role.includes('workshop') ? workshopSelect.value : null;
             try {
-                await apiFetch('/assign_role', 'POST', { tg_id, role, workshop });
-                if (tg_id === user.id) {
-                    await loadUser();
-                    hideConfirmShowMenu();
-                    updateMenuByRole();
+                const response = await apiFetch('/assign_role', 'POST', { tg_id, role, workshop });
+                if (response.ok) {
+                    if (tg_id === user.id) {
+                        await loadUser();
+                        hideConfirmShowMenu();
+                        updateMenuByRole();
+                    }
+                    tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
+                    loadPendingList();
+                } else {
+                    tg.showAlert('Ошибка');
                 }
-                tg.showAlert(`Роль назначена: ${getRoleText(role)}${workshop ? ' (' + getDepartmentText(workshop) + ')' : ''}`);
-                loadPendingList();
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         async function rejectUser(tg_id) {
             try {
-                await apiFetch('/reject_user', 'POST', { tg_id });
-                tg.showAlert('Заявка отклонена');
-                loadPendingList();
+                const response = await apiFetch('/reject_user', 'POST', { tg_id });
+                if (response.ok) {
+                    tg.showAlert('Заявка отклонена');
+                    loadPendingList();
+                } else {
+                    tg.showAlert('Ошибка');
+                }
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         function manageUsers() {
@@ -907,25 +935,33 @@
             const workshopSelect = document.getElementById(`change-workshop-${tg_id}`);
             const workshop = role.includes('workshop') ? workshopSelect.value : null;
             try {
-                await apiFetch('/change_role', 'POST', { tg_id, role, workshop });
-                if (tg_id === user.id) {
-                    userRole = role;
-                    userWorkshop = workshop;
-                    updateMenuByRole();
+                const response = await apiFetch('/change_role', 'POST', { tg_id, role, workshop });
+                if (response.ok) {
+                    if (tg_id === user.id) {
+                        userRole = role;
+                        userWorkshop = workshop;
+                        updateMenuByRole();
+                    }
+                    tg.showAlert('Роль изменена');
+                    loadUsersList();
+                } else {
+                    tg.showAlert('Ошибка');
                 }
-                tg.showAlert('Роль изменена');
-                loadUsersList();
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         async function removeUser(tg_id) {
             try {
-                await apiFetch('/remove_user', 'POST', { tg_id });
-                tg.showAlert('Пользователь удалён');
-                loadUsersList();
+                const response = await apiFetch('/remove_user', 'POST', { tg_id });
+                if (response.ok) {
+                    tg.showAlert('Пользователь удалён');
+                    loadUsersList();
+                } else {
+                    tg.showAlert('Ошибка');
+                }
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         function manageEvents() {
@@ -960,7 +996,7 @@
         function editEvent(id) {
             document.getElementById('manage-events').classList.add('hidden');
             document.getElementById('create-event').classList.remove('hidden');
-            document.getElementById('create-event').querySelector('h2').textContent = 'Редактировать событие';
+            document.getElementById('event-form-title').textContent = 'Редактировать событие';
             currentEditEventId = id;
             const event = events.find(e => e.id === id);
             if (!event) return;
@@ -970,30 +1006,20 @@
             document.getElementById('event-type').value = event.type;
             document.getElementById('event-description').value = event.description || '';
             renderParticipantsList(event.participants);
-            flatpickr("#event-datetime", {
-                enableTime: true,
-                dateFormat: "d.m.Y H:i",
-                locale: "ru",
-                minDate: "today"
-            });
-            flatpickr("#event-end-datetime", {
-                enableTime: true,
-                dateFormat: "d.m.Y H:i",
-                locale: "ru",
-                minDate: "today"
-            });
-            tg.BackButton.show().onClick(() => {
-                document.getElementById('create-event').classList.add('hidden');
-                document.getElementById('manage-events').classList.remove('hidden');
-            });
+            initFlatpickr(false); // Без minDate для редактирования
+            tg.BackButton.show().onClick(cancelEventEdit);
         }
         async function deleteEvent(id) {
             try {
-                await apiFetch(`/events/${id}`, 'DELETE');
-                tg.showAlert('Событие удалено');
-                loadManageEvents();
+                const response = await apiFetch(`/events/${id}`, 'DELETE');
+                if (response.ok) {
+                    tg.showAlert('Событие удалено');
+                    loadManageEvents();
+                } else {
+                    tg.showAlert('Ошибка');
+                }
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         function manageTasks() {
@@ -1025,42 +1051,51 @@
             }
         }
         function editTask(id) {
+            // Добавьте форму редактирования задачи аналогично событиям, если нужно
             tg.showAlert(`Редактирование задачи ${id} (добавьте форму для реального редактирования)`);
         }
         async function deleteTask(id) {
             try {
-                await apiFetch(`/tasks/${id}`, 'DELETE');
-                tg.showAlert('Задача удалена');
-                loadManageTasks();
+                const response = await apiFetch(`/tasks/${id}`, 'DELETE');
+                if (response.ok) {
+                    tg.showAlert('Задача удалена');
+                    loadManageTasks();
+                } else {
+                    tg.showAlert('Ошибка');
+                }
             } catch (e) {
-                tg.showAlert('Ошибка');
+                tg.showAlert('Ошибка: ' + e.message);
             }
         }
         // Загрузка данных
         async function loadEvents() {
             try {
-                events = await apiFetch('/events');
+                const response = await apiFetch('/events');
+                events = await response.json();
             } catch (e) {
                 console.error(e);
             }
         }
         async function loadTasksData() {
             try {
-                tasks = await apiFetch('/tasks');
+                const response = await apiFetch('/tasks');
+                tasks = await response.json();
             } catch (e) {
                 console.error(e);
             }
         }
         async function loadParticipants() {
             try {
-                participants = await apiFetch('/users');
+                const response = await apiFetch('/users');
+                participants = await response.json();
             } catch (e) {
                 console.error(e);
             }
         }
         async function loadPendingUsers() {
             try {
-                pendingUsers = await apiFetch('/pending_users');
+                const response = await apiFetch('/pending_users');
+                pendingUsers = await response.json();
             } catch (e) {
                 console.error(e);
             }
