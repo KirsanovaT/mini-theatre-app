@@ -321,7 +321,6 @@
         tg.ready();
         tg.expand();
         const user = tg.initDataUnsafe.user || { id: 123456, username: 'testuser' };
-        const initData = tg.initData; // Для аутентификации
         const API_URL = 'http://localhost:3000/api'; // Замени на URL backend
         let userFIO = '';
         let userRole = 'pending';
@@ -332,9 +331,9 @@
         let participants = [];
         let pendingUsers = [];
         let currentEditEventId = null;
-        // Хелпер для fetch с аутентификацией
+        // Хелпер для fetch без аутентификации
         async function apiFetch(endpoint, method = 'GET', body = null) {
-            const headers = { 'Authorization': initData };
+            const headers = {};
             if (body) headers['Content-Type'] = 'application/json';
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method,
@@ -364,7 +363,7 @@
         }
         async function loadUser() {
             try {
-                const response = await apiFetch('/user');
+                const response = await apiFetch('/user?tg_id=' + user.id);
                 const userData = await response.json();
                 if (userData) {
                     userFIO = userData.fio;
@@ -409,6 +408,7 @@
             }
             try {
                 const response = await apiFetch('/request_confirmation', 'POST', {
+                    tg_id: user.id,
                     fio,
                     requested_role: requestedRole,
                     requested_workshop: requestedWorkshop,
@@ -616,7 +616,6 @@
             }
         }
         // ===== ЗАДАЧИ ЦЕХАМ =====
-        // (без изменений, так как ошибка, вероятно, в событиях)
         function startWorkshopTasks() {
             if (!requireConfirmation() || !['workshop_head', 'workshop_worker', 'troupe_head'].includes(userRole)) return;
             hideAllSections();
@@ -849,7 +848,7 @@
         async function assignRole(tg_id) {
             const roleSelect = document.getElementById(`assign-role-${tg_id}`);
             const role = roleSelect.value;
-            const workshopSelect = document.getElementById(`assign-workshop-${p.tg_id}`);
+            const workshopSelect = document.getElementById(`assign-workshop-${tg_id}`);
             const workshop = role.includes('workshop') ? workshopSelect.value : null;
             try {
                 const response = await apiFetch('/assign_role', 'POST', { tg_id, role, workshop });
